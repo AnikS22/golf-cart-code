@@ -1,0 +1,225 @@
+<?xml version="1.0"?>
+<!--
+  cart_parameters.xacro
+  ====================================================================
+  CANONICAL SOURCE OF TRUTH for the GEM E4 digital twin.
+
+  Both the Gazebo simulation (Sim/) and the real-cart description
+  (Software/autonomy_ws/src/gem_description/) MUST include this file
+  via xacro:include. Any geometry, sensor pose, or vehicle dynamics
+  parameter that exists in two places is a bug. Put it here, period.
+
+  When you measure a real-world value (sensor mount, wheelbase, etc.),
+  update THIS file, then rebuild both sim and real-cart packages. They
+  will then track each other automatically.
+
+  Mirror summary for non-xacro consumers: Hardware/cart_parameters.md
+  ====================================================================
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ====================================================================
+       VEHICLE GEOMETRY (Polaris GEM e4 stock dimensions)
+
+       Source: GEM e4 Owner's Manual + measurement on the FAU cart.
+       Update by direct measurement once cart is accessible — values
+       below are stock from manufacturer datasheet.
+       ==================================================================== -->
+  <xacro:property name="VEHICLE_LENGTH_M"   value="3.05"/>
+  <xacro:property name="VEHICLE_WIDTH_M"    value="1.40"/>
+  <xacro:property name="VEHICLE_HEIGHT_M"   value="2.00"/>   <!-- with hardtop -->
+  <xacro:property name="WHEELBASE_M"        value="1.83"/>   <!-- front axle to rear axle -->
+  <xacro:property name="TRACK_WIDTH_M"      value="1.27"/>   <!-- left wheel to right wheel -->
+  <xacro:property name="WHEEL_RADIUS_M"     value="0.305"/>  <!-- 24.5 inch tire / 2 -->
+  <xacro:property name="GROUND_CLEARANCE_M" value="0.150"/>
+  <xacro:property name="VEHICLE_MASS_KG"    value="709.0"/>  <!-- GEM e4 curb weight ~1563 lb -->
+  <xacro:property name="HALF_WIDTH_M"       value="0.65"/>   <!-- approx half body width to A/B pillar -->
+
+  <!-- ====================================================================
+       VEHICLE DYNAMICS
+
+       Steering ratio = handwheel_angle / road_wheel_angle. GEM e4 stock
+       is approximately 16:1; verify by measurement (turn handwheel a
+       known amount, measure tie-rod angle). Critical — wrong value
+       breaks lateral control.
+
+       Max road-wheel angle ≈ ±28°. Max handwheel angle ≈ ±450° (1.25
+       turns lock-to-lock).
+       ==================================================================== -->
+  <xacro:property name="STEERING_RATIO"        value="16.0"/>
+  <xacro:property name="MAX_ROAD_WHEEL_DEG"    value="28.0"/>
+  <xacro:property name="MAX_HANDWHEEL_DEG"     value="448.0"/>  <!-- = MAX_ROAD_WHEEL × STEERING_RATIO -->
+  <xacro:property name="MAX_VEHICLE_SPEED_MPS" value="11.176"/> <!-- 25 mph -->
+  <xacro:property name="GOVERNED_SPEED_MPS"    value="2.235"/>  <!-- 5 mph Phase 1 cap -->
+
+  <!-- ====================================================================
+       FRAME ORIGIN (REP-103: X forward, Y left, Z up)
+
+       base_link is at ground level, midway between the rear axle (X=0)
+       and the vehicle center. Cartagena's URDF places base_link near
+       vehicle center; we keep that convention.
+
+       base_footprint = base_link projected to the ground plane.
+       ==================================================================== -->
+
+  <!-- Rear axle is at X = -WHEELBASE/2, front axle at X = +WHEELBASE/2 -->
+
+  <!-- ====================================================================
+       SENSOR EXTRINSICS — base_link → sensor_link
+
+       UNITS: meters, radians (RPY).
+
+       These are FACTORY-INSTALLED ESTIMATES. Once the cart is calibrated
+       with Autoware's calibration tools (or equivalent), update these
+       values from the calibration output. The sim and real cart both
+       read this single file → one update propagates everywhere.
+
+       Convention: roof-mounted sensors at Z = ROOF_Z + offset.
+       Mast-mounted LiDAR adds an extra MAST_HEIGHT.
+       ==================================================================== -->
+  <xacro:property name="ROOF_Z_M"       value="2.00"/>
+  <xacro:property name="MAST_HEIGHT_M"  value="0.20"/>
+  <xacro:property name="WINDSHIELD_X_M" value="0.45"/>
+  <xacro:property name="WINDSHIELD_Z_M" value="1.50"/>
+  <xacro:property name="REAR_X_M"       value="-1.30"/>
+
+  <!-- LiDAR — Livox Mid-360, atop roof mast, level -->
+  <xacro:property name="EXT_LIDAR_X"    value="0.0"/>
+  <xacro:property name="EXT_LIDAR_Y"    value="0.0"/>
+  <xacro:property name="EXT_LIDAR_Z"    value="${ROOF_Z_M + MAST_HEIGHT_M}"/>
+  <xacro:property name="EXT_LIDAR_R"    value="0.0"/>
+  <xacro:property name="EXT_LIDAR_P"    value="0.0"/>
+  <xacro:property name="EXT_LIDAR_YAW"  value="0.0"/>
+
+  <!-- ZED 2i front stereo — windshield top center -->
+  <xacro:property name="EXT_ZED2I_X"    value="${WINDSHIELD_X_M}"/>
+  <xacro:property name="EXT_ZED2I_Y"    value="0.0"/>
+  <xacro:property name="EXT_ZED2I_Z"    value="${WINDSHIELD_Z_M}"/>
+  <xacro:property name="EXT_ZED2I_R"    value="0.0"/>
+  <xacro:property name="EXT_ZED2I_P"    value="0.0"/>
+  <xacro:property name="EXT_ZED2I_YAW"  value="0.0"/>
+
+  <!-- Leopard IMX390 GMSL front mono — windshield top, just left of ZED -->
+  <xacro:property name="EXT_FRONTCAM_X"   value="${WINDSHIELD_X_M}"/>
+  <xacro:property name="EXT_FRONTCAM_Y"   value="-0.15"/>
+  <xacro:property name="EXT_FRONTCAM_Z"   value="${WINDSHIELD_Z_M}"/>
+  <xacro:property name="EXT_FRONTCAM_R"   value="0.0"/>
+  <xacro:property name="EXT_FRONTCAM_P"   value="0.0"/>
+  <xacro:property name="EXT_FRONTCAM_YAW" value="0.0"/>
+
+  <!-- Corner cameras (4× e-CAM130 GMSL, 120° FOV) — A/B pillars -->
+  <xacro:property name="EXT_CAM_FL_X"    value="${WINDSHIELD_X_M - 0.1}"/>
+  <xacro:property name="EXT_CAM_FL_Y"    value="${HALF_WIDTH_M}"/>
+  <xacro:property name="EXT_CAM_FL_Z"    value="${WINDSHIELD_Z_M - 0.2}"/>
+  <xacro:property name="EXT_CAM_FL_YAW"  value="0.785"/>     <!-- +45° -->
+
+  <xacro:property name="EXT_CAM_FR_X"    value="${WINDSHIELD_X_M - 0.1}"/>
+  <xacro:property name="EXT_CAM_FR_Y"    value="-${HALF_WIDTH_M}"/>
+  <xacro:property name="EXT_CAM_FR_Z"    value="${WINDSHIELD_Z_M - 0.2}"/>
+  <xacro:property name="EXT_CAM_FR_YAW"  value="-0.785"/>    <!-- -45° -->
+
+  <xacro:property name="EXT_CAM_RL_X"    value="${REAR_X_M + 0.4}"/>
+  <xacro:property name="EXT_CAM_RL_Y"    value="${HALF_WIDTH_M}"/>
+  <xacro:property name="EXT_CAM_RL_Z"    value="${WINDSHIELD_Z_M - 0.2}"/>
+  <xacro:property name="EXT_CAM_RL_YAW"  value="2.356"/>     <!-- +135° -->
+
+  <xacro:property name="EXT_CAM_RR_X"    value="${REAR_X_M + 0.4}"/>
+  <xacro:property name="EXT_CAM_RR_Y"    value="-${HALF_WIDTH_M}"/>
+  <xacro:property name="EXT_CAM_RR_Z"    value="${WINDSHIELD_Z_M - 0.2}"/>
+  <xacro:property name="EXT_CAM_RR_YAW"  value="-2.356"/>    <!-- -135° -->
+
+  <!-- ZED Mini rear — rear cargo top -->
+  <xacro:property name="EXT_ZEDMINI_X"   value="${REAR_X_M}"/>
+  <xacro:property name="EXT_ZEDMINI_Y"   value="0.0"/>
+  <xacro:property name="EXT_ZEDMINI_Z"   value="${WINDSHIELD_Z_M - 0.1}"/>
+  <xacro:property name="EXT_ZEDMINI_R"   value="0.0"/>
+  <xacro:property name="EXT_ZEDMINI_P"   value="0.0"/>
+  <xacro:property name="EXT_ZEDMINI_YAW" value="3.14159"/>   <!-- 180°, facing aft -->
+
+  <!-- GNSS antennas (moving baseline pair) — front and rear of roof -->
+  <!-- Baseline vector: rear → front along +X. ≥40 cm separation required. -->
+  <xacro:property name="EXT_GNSS1_X"     value="0.6"/>       <!-- front antenna -->
+  <xacro:property name="EXT_GNSS1_Y"     value="0.0"/>
+  <xacro:property name="EXT_GNSS1_Z"     value="${ROOF_Z_M + 0.05}"/>
+  <xacro:property name="EXT_GNSS2_X"     value="-0.4"/>      <!-- rear antenna -->
+  <xacro:property name="EXT_GNSS2_Y"     value="0.0"/>
+  <xacro:property name="EXT_GNSS2_Z"     value="${ROOF_Z_M + 0.05}"/>
+  <!-- baseline = ~1.0 m which gives good heading accuracy -->
+
+  <!-- IMU — VectorNav VN-100, near vehicle CG (in trunk Pelican box) -->
+  <xacro:property name="EXT_IMU_X"   value="0.0"/>
+  <xacro:property name="EXT_IMU_Y"   value="0.0"/>
+  <xacro:property name="EXT_IMU_Z"   value="0.30"/>
+  <xacro:property name="EXT_IMU_R"   value="0.0"/>
+  <xacro:property name="EXT_IMU_P"   value="0.0"/>
+  <xacro:property name="EXT_IMU_YAW" value="0.0"/>
+
+  <!-- ====================================================================
+       SENSOR SPECS (FOV, rate, range, noise)
+
+       Pulled from manufacturer datasheets in
+       Hardware/OneDrive_1_5-1-2026/Motor/ and elsewhere.
+       ==================================================================== -->
+
+  <!-- LiDAR — Livox Mid-360 -->
+  <xacro:property name="LIDAR_RATE_HZ"       value="10"/>
+  <xacro:property name="LIDAR_H_SAMPLES"     value="2400"/>
+  <xacro:property name="LIDAR_V_SAMPLES"     value="32"/>
+  <xacro:property name="LIDAR_H_MIN_RAD"     value="-3.14159"/>
+  <xacro:property name="LIDAR_H_MAX_RAD"     value="3.14159"/>
+  <xacro:property name="LIDAR_V_MIN_RAD"     value="-0.122"/>   <!-- ≈ -7° -->
+  <xacro:property name="LIDAR_V_MAX_RAD"     value="0.908"/>    <!-- ≈ +52° -->
+  <xacro:property name="LIDAR_RANGE_MIN_M"   value="0.1"/>
+  <xacro:property name="LIDAR_RANGE_MAX_M"   value="70.0"/>
+  <xacro:property name="LIDAR_NOISE_STDDEV"  value="0.02"/>
+
+  <!-- ZED 2i — front stereo -->
+  <xacro:property name="ZED2I_RATE_HZ"      value="30"/>
+  <xacro:property name="ZED2I_HFOV_RAD"     value="1.91986"/>   <!-- ~110° H -->
+  <xacro:property name="ZED2I_WIDTH_PX"     value="1280"/>
+  <xacro:property name="ZED2I_HEIGHT_PX"    value="720"/>
+  <xacro:property name="ZED2I_RANGE_NEAR_M" value="0.3"/>
+  <xacro:property name="ZED2I_RANGE_FAR_M"  value="20.0"/>
+
+  <!-- Leopard IMX390 GMSL front mono -->
+  <xacro:property name="FRONTCAM_RATE_HZ"   value="30"/>
+  <xacro:property name="FRONTCAM_HFOV_RAD"  value="1.0472"/>    <!-- 60° narrow -->
+  <xacro:property name="FRONTCAM_WIDTH_PX"  value="1920"/>
+  <xacro:property name="FRONTCAM_HEIGHT_PX" value="1080"/>
+
+  <!-- Corner cameras — e-CAM130 (Sony IMX377, 120° FOV) -->
+  <xacro:property name="CORNERCAM_RATE_HZ"   value="20"/>
+  <xacro:property name="CORNERCAM_HFOV_RAD"  value="2.0944"/>   <!-- 120° -->
+  <xacro:property name="CORNERCAM_WIDTH_PX"  value="1280"/>
+  <xacro:property name="CORNERCAM_HEIGHT_PX" value="720"/>
+
+  <!-- ZED Mini rear stereo -->
+  <xacro:property name="ZEDMINI_RATE_HZ"  value="30"/>
+  <xacro:property name="ZEDMINI_HFOV_RAD" value="1.74533"/>     <!-- ~100° -->
+  <xacro:property name="ZEDMINI_WIDTH_PX" value="1280"/>
+  <xacro:property name="ZEDMINI_HEIGHT_PX" value="720"/>
+
+  <!-- VN-100 IMU -->
+  <xacro:property name="IMU_RATE_HZ"            value="200"/>
+  <xacro:property name="IMU_GYRO_NOISE_STDDEV"  value="0.0001"/>
+  <xacro:property name="IMU_ACCEL_NOISE_STDDEV" value="0.005"/>
+
+  <!-- GNSS — u-blox ZED-F9P -->
+  <xacro:property name="GNSS_RATE_HZ" value="10"/>
+
+  <!-- ====================================================================
+       ROS TOPIC NAMES (must match real cart's bridge node)
+       ==================================================================== -->
+  <xacro:property name="TOPIC_LIDAR"       value="/livox/lidar"/>
+  <xacro:property name="TOPIC_ZED2I_LEFT"  value="/zed2i/left/image_raw"/>
+  <xacro:property name="TOPIC_ZED2I_DEPTH" value="/zed2i/depth/depth_registered"/>
+  <xacro:property name="TOPIC_FRONTCAM"    value="/front_cam/image_raw"/>
+  <xacro:property name="TOPIC_CAM_FL"      value="/cam_fl/image_raw"/>
+  <xacro:property name="TOPIC_CAM_FR"      value="/cam_fr/image_raw"/>
+  <xacro:property name="TOPIC_CAM_RL"      value="/cam_rl/image_raw"/>
+  <xacro:property name="TOPIC_CAM_RR"      value="/cam_rr/image_raw"/>
+  <xacro:property name="TOPIC_ZEDMINI"     value="/zed_mini/left/image_raw"/>
+  <xacro:property name="TOPIC_GNSS_FIX"    value="/gnss/fix"/>
+  <xacro:property name="TOPIC_IMU"         value="/vn100/imu"/>
+
+</robot>
