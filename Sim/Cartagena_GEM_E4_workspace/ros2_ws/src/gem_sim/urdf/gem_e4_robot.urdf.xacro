@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<!--
+  gem_e4_robot.urdf.xacro
+
+  TOP-LEVEL robot description for the GEM E4 digital twin. Wires
+  together the upstream chassis (from GEM-Illinois gem-simulator),
+  the canonical cart_parameters.xacro (single source of truth), and
+  the gem_e4_sensors stack.
+
+  This same xacro is consumed by:
+    - Sim:        gem_sim launch generates URDF, spawns into Gazebo
+    - Real cart:  gem_description package on the Jetson generates URDF
+                  and runs robot_state_publisher (no Gazebo)
+
+  Include order matters:
+    1. cart_parameters.xacro — defines all properties (must be first)
+    2. upstream gem_e4 chassis (from gem_description package, cloned
+       from GEM-Illinois/gem-simulator)
+    3. gem_e4_sensors.urdf.xacro — uses the properties from (1)
+
+  Build prerequisites: clone the upstream gem-simulator into the
+  workspace src/ so the gem_description package is on the path.
+-->
+<robot name="gem_e4" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ============ Step 1: load canonical parameters ============ -->
+  <xacro:include filename="$(find gem_sim)/urdf/cart_parameters.xacro"/>
+
+  <!-- ============ Step 2: include upstream chassis URDF ============
+       The upstream GEM-Illinois URDF defines: base_footprint, base_link,
+       chair_link, door_link, front_rack_link, the four wheels (front_left,
+       front_right, rear_left, rear_right), and the steering hinges.
+
+       If you want to bypass the upstream and use a minimal stub for sim-only
+       testing, comment out this include and uncomment the stub below.
+  -->
+  <xacro:include filename="$(find gem_description)/urdf/e4/gem_e4.urdf.xacro"/>
+
+  <!-- Stub fallback — uncomment to test without the upstream package
+  <link name="base_footprint"/>
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 ${VEHICLE_HEIGHT_M / 2}" rpy="0 0 0"/>
+      <geometry><box size="${VEHICLE_LENGTH_M} ${VEHICLE_WIDTH_M} ${VEHICLE_HEIGHT_M}"/></geometry>
+      <material name="cart_white"><color rgba="1.0 1.0 1.0 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${VEHICLE_HEIGHT_M / 2}" rpy="0 0 0"/>
+      <geometry><box size="${VEHICLE_LENGTH_M} ${VEHICLE_WIDTH_M} ${VEHICLE_HEIGHT_M}"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="${VEHICLE_MASS_KG}"/>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+      <inertia ixx="100" iyy="500" izz="500" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+  <joint name="base_footprint_to_base_link" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  -->
+
+  <!-- ============ Step 3: attach sensor stack to base_link ============ -->
+  <xacro:include filename="$(find gem_sim)/urdf/gem_e4_sensors.urdf.xacro"/>
+  <xacro:gem_e4_sensors parent="base_link"/>
+
+  <!-- ============ Gazebo: ackermann-drive plugin =============
+       Drives the cart in Gazebo from /model/gem_e4/cmd_vel (Twist).
+       The ros_gz_bridge bridges /cmd_vel (ROS) ↔ /model/gem_e4/cmd_vel (gz).
+       sim_dbw_bridge_node publishes /cmd_vel after applying the same state
+       machine and safety gates as the real Teensy firmware. -->
+  <gazebo>
+    <plugin filename="gz-sim-ackermann-steering-system" name="gz::sim::systems::AckermannSteering">
+      <left_joint>front_left_steering_hinge_joint</left_joint>
+      <right_joint>front_right_steering_hinge_joint</right_joint>
+      <left_wheel_joint>front_left_wheel_joint</left_wheel_joint>
+      <right_wheel_joint>front_right_wheel_joint</right_wheel_joint>
+      <kingpin_width>${TRACK_WIDTH_M}</kingpin_width>
+      <steering_limit>${MAX_ROAD_WHEEL_DEG * 3.14159 / 180.0}</steering_limit>
+      <wheel_base>${WHEELBASE_M}</wheel_base>
+      <wheel_radius>${WHEEL_RADIUS_M}</wheel_radius>
+      <topic>cmd_vel</topic>
+      <min_velocity>-${GOVERNED_SPEED_MPS}</min_velocity>
+      <max_velocity>${GOVERNED_SPEED_MPS}</max_velocity>
+      <min_acceleration>-2.0</min_acceleration>
+      <max_acceleration>2.0</max_acceleration>
+    </plugin>
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+      <topic>joint_states</topic>
+    </plugin>
+    <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>true</publish_link_pose>
+      <use_pose_vector_msg>true</use_pose_vector_msg>
+      <static_publisher>true</static_publisher>
+      <static_update_frequency>1</static_update_frequency>
+    </plugin>
+    <plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+      <odom_publish_frequency>50</odom_publish_frequency>
+    </plugin>
+  </gazebo>
+
+</robot>

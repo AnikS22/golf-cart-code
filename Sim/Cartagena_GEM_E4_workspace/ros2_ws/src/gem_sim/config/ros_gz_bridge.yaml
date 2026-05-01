@@ -1,0 +1,113 @@
+# ros_gz_bridge config — Gazebo Harmonic ↔ ROS 2 Humble
+#
+# Topic names match Sim/urdf/cart_parameters.xacro TOPIC_* properties so
+# the sim publishes on the SAME topics the real cart will publish on.
+# Autonomy code is identical between sim and real.
+#
+# Usage:
+#   ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=$(ros2 pkg prefix gem_sim)/share/gem_sim/config/ros_gz_bridge.yaml
+
+# ─── Vehicle command (autonomy → sim) ───
+# sim_dbw_bridge_node publishes /cmd_vel (after state-machine gating); we
+# bridge into Gazebo's /model/gem_e4/cmd_vel (consumed by AckermannSteering).
+- ros_topic_name: "cmd_vel"
+  gz_topic_name: "/model/gem_e4/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ
+
+# ─── Vehicle telemetry (sim → autonomy) ───
+- ros_topic_name: "joint_states"
+  gz_topic_name: "joint_states"
+  ros_type_name: "sensor_msgs/msg/JointState"
+  gz_type_name: "gz.msgs.Model"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "odom"
+  gz_topic_name: "odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+# Static pose (TF) from Gazebo
+- ros_topic_name: "tf"
+  gz_topic_name: "/model/gem_e4/pose"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
+
+# ─── Sensors (sim → autonomy) ───
+# Topic names mirror cart_parameters.xacro TOPIC_* values.
+
+- ros_topic_name: "/livox/lidar"
+  gz_topic_name: "/livox/lidar"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/zed2i/left/image_raw"
+  gz_topic_name: "/zed2i/left/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/zed2i/depth/depth_registered"
+  gz_topic_name: "/zed2i/depth/depth_registered"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/front_cam/image_raw"
+  gz_topic_name: "/front_cam/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/cam_fl/image_raw"
+  gz_topic_name: "/cam_fl/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/cam_fr/image_raw"
+  gz_topic_name: "/cam_fr/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/cam_rl/image_raw"
+  gz_topic_name: "/cam_rl/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/cam_rr/image_raw"
+  gz_topic_name: "/cam_rr/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/zed_mini/left/image_raw"
+  gz_topic_name: "/zed_mini/left/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/gnss/fix"
+  gz_topic_name: "/gnss/fix"
+  ros_type_name: "sensor_msgs/msg/NavSatFix"
+  gz_type_name: "gz.msgs.NavSat"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/vn100/imu"
+  gz_topic_name: "/vn100/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+
+# ─── Clock (Gazebo → ROS) ───
+- ros_topic_name: "clock"
+  gz_topic_name: "clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS

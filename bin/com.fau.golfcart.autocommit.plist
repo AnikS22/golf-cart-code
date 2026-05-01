@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.fau.golfcart.autocommit</string>
+
+  <!-- Run bin/sync.sh every 600 seconds (10 min) -->
+  <key>StartInterval</key>
+  <integer>600</integer>
+
+  <!-- The script -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/mpcr/Desktop/Golf Cart Code/bin/sync.sh</string>
+  </array>
+
+  <!-- Run only when the user is logged in (no need at boot) -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <!-- Logs -->
+  <key>StandardOutPath</key>
+  <string>/tmp/golf-cart-sync.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/golf-cart-sync.stderr.log</string>
+
+  <!-- Environment: include /usr/local/bin (Homebrew) so git/gh resolve -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>

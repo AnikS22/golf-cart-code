@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>gem_sim</name>
+  <version>0.1.0</version>
+  <description>
+    GEM E4 digital twin: top-level robot description, Gazebo Harmonic
+    launch, and ros_gz_bridge config. Reads canonical geometry / sensor
+    extrinsics / sensor specs / topic names from cart_parameters.xacro
+    so the sim and the real cart stay synchronized.
+  </description>
+  <maintainer email="mpcrlab@gmail.com">FAU MPCR</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher</exec_depend>
+  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>ros_gz_bridge</exec_depend>
+  <exec_depend>ros_gz_image</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>sim_dbw_bridge</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
