@@ -1,0 +1,24 @@
+FROM docker.io/osrf/ros:jazzy-desktop-full
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ros-jazzy-ros-gz \
+      ros-jazzy-ros-gz-bridge \
+      ros-jazzy-ros-gz-image \
+      ros-jazzy-ros-gz-sim \
+      ros-jazzy-ros-gz-interfaces \
+      ros-jazzy-xacro \
+      ros-jazzy-robot-state-publisher \
+      ros-jazzy-joint-state-publisher \
+      ros-jazzy-joint-state-publisher-gui \
+      ros-jazzy-teleop-twist-keyboard \
+      ros-jazzy-teleop-twist-joy \
+      ros-jazzy-rviz2 \
+      ros-jazzy-nmea-msgs \
+      git \
+      python3-colcon-common-extensions \
+      libgl1-mesa-dri \
+      mesa-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+SHELL ["/bin/bash", "-c"]
+WORKDIR /root/ros2_ws

@@ -1,0 +1,83 @@
+<?xml version="1.0" ?>
+<sdf version="1.10">
+  <world name="fau_breezeway">
+    <!-- System plugins required for a functional sim.
+         Sensors is required for camera/lidar to produce output.
+         Imu is required for IMU sensor updates. -->
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu"/>
+    <plugin filename="gz-sim-contact-system"
+            name="gz::sim::systems::Contact"/>
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <scene>
+      <!-- High ambient so the photoreal mesh is readable without Gazebo's
+           sun adding a second set of shadows on top of the baked-in ones
+           from photogrammetry capture. -->
+      <ambient>0.9 0.9 0.9 1</ambient>
+      <background>0.65 0.75 0.85 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- Dim, straight-down directional light so the cart still self-shades
+         for depth cues but the mesh stays governed by baked lighting. -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 20 0 0 0</pose>
+      <diffuse>0.2 0.2 0.2 1</diffuse>
+      <specular>0.05 0.05 0.05 1</specular>
+      <direction>0 0 -1</direction>
+    </light>
+
+    <!-- Invisible physics floor so the cart has reliable collision.
+         Visual comes from the photoreal FAU mesh below; removing the
+         visual here avoids hiding it behind a gray plane. -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>2000 2000</size></plane>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- FAU Breezeway photogrammetry (Google 3D Tiles via Blosm).
+         Static so cart collides with buildings but geometry doesn't move.
+         Origin of this mesh is the Blosm import center (roughly middle of
+         the bbox). Shifted down 2 m because mesh ground sits slightly
+         below z=0 in Blosm's local frame. -->
+    <model name="fau_breezeway_mesh">
+      <static>true</static>
+      <!-- glTF is Y-up: roll +90° so mesh Y -> Gazebo Z.
+           Ground origin is pre-baked into the mesh by tools/reanchor.py
+           (shifted so median of 5-20th percentile z = 0), so no z translation here. -->
+      <pose>0 0 0 1.5708 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>file:///root/ros2_ws/tools/fau_world/fau_breezeway.glb</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>

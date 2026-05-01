@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+._*
+
+# ROS 2 / colcon build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Large generated assets — regenerate via Sim/Cartagena_GEM_E4_workspace/ros2_ws/tools/
+fau_world/
+*.glb
+*.fbx
+
+# Bag data — store on lab NAS, never in repo
+*.mcap
+*.bag
+rosbags/
+
+# Secrets (just in case)
+*.pem
+*.key
+.env

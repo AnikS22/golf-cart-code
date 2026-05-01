@@ -1,0 +1,23 @@
+{
+  "fau_breezeway": {
+    "description": "FAU Boca - East Engineering (EE-96) to Wimberly Library",
+    "bbox": {"south": 26.3714, "north": 26.3734, "west": -80.1046, "east": -80.0976},
+    "blosm": {
+      "lod": "lod5",
+      "geometric_error": 5.0,
+      "max_num_tiles": 512
+    },
+    "custom": {
+      "target_error_m": 2.0,
+      "alt_low_m": -15.0,
+      "alt_high_m": 60.0
+    },
+    "crop": {
+      "z_floor": -3.0,
+      "outlier_radius_m": 80.0
+    },
+    "overpass": {
+      "highways": "footway|pedestrian|path|service|unclassified|residential|tertiary|secondary"
+    }
+  }
+}

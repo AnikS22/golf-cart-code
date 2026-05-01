@@ -1,0 +1,17 @@
+FROM docker.io/osrf/ros:humble-desktop-full
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ros-humble-gazebo-ros-pkgs \
+      ros-humble-xacro \
+      ros-humble-robot-state-publisher \
+      ros-humble-joint-state-publisher \
+      ros-humble-joint-state-publisher-gui \
+      ros-humble-nmea-msgs \
+      git \
+      python3-colcon-common-extensions \
+      libgl1-mesa-dri \
+      mesa-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+SHELL ["/bin/bash", "-c"]
+WORKDIR /root/ros2_ws
