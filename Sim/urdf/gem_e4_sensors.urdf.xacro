@@ -2,48 +2,21 @@
 <!--
   gem_e4_sensors.urdf.xacro
 
-  Additive sensor stack for the Cartagena GEM E4 sim. Mirrors the real-cart
-  hardware spec (Hardware/system_design.md). Include this xacro from the
-  top-level robot xacro after the chassis is defined:
+  Additive sensor stack for the GEM E4 digital twin. Reads ALL geometry
+  and sensor specs from cart_parameters.xacro — never hard-codes a value
+  that exists there. Single source of truth.
 
-    <xacro:include filename="$(find gem_description)/urdf/e4/gem_e4.urdf.xacro"/>
-    <xacro:include filename="$(find gem_description)/urdf/e4/gem_e4_sensors.urdf.xacro"/>
+  Include from a top-level robot xacro:
+
+    <xacro:include filename="$(find gem_sim)/urdf/cart_parameters.xacro"/>
+    <xacro:include filename="$(find gem_sim)/urdf/gem_e4_sensors.urdf.xacro"/>
     <xacro:gem_e4_sensors parent="base_link"/>
 
-  Sensor placements are best-guesses against a hardtopped E4. CALIBRATE EXTRINSICS
-  on the real cart with Autoware's calibration tools and override these values
-  via gem_description/config/extrinsics.yaml. Do NOT assume the URDF numbers are
-  ground truth at build time.
-
-  Coordinates: ROS REP-103 (X forward, Y left, Z up). base_link = vehicle center,
-  ground level (matches Cartagena gem_e4.urdf convention).
-
-  Sensors modeled (matching Hardware/system_design.md):
-    - Livox Mid-360 LiDAR  (roof mast)
-    - ZED 2i front stereo  (windshield top)
-    - Leopard IMX390 GMSL front mono (windshield top, beside ZED)
-    - 4× e-CAM130 GMSL corner cameras (A/B-pillars)
-    - ZED Mini rear stereo
-    - 2× GNSS antennas (moving-baseline)
-    - VectorNav VN-100 IMU
+  Coordinates: ROS REP-103 (X forward, Y left, Z up).
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- ====================================================================
-       Mount geometry (rough, calibrate before commit to a real run)
-       Reference: GEM E4 ~3.05 m long, 1.40 m wide, ~2.0 m tall hardtopped,
-       wheelbase ~1.80 m. base_link assumed at ground level, vehicle center.
-       ==================================================================== -->
-  <xacro:property name="ROOF_Z"        value="2.00"/>   <!-- top of hardtop above ground -->
-  <xacro:property name="MAST_HEIGHT"   value="0.20"/>   <!-- LiDAR mast height above roof -->
-  <xacro:property name="WINDSHIELD_Z"  value="1.50"/>
-  <xacro:property name="WINDSHIELD_X"  value="0.45"/>   <!-- forward of base_link -->
-  <xacro:property name="REAR_X"        value="-1.30"/>  <!-- aft of base_link -->
-  <xacro:property name="HALF_WIDTH"    value="0.65"/>   <!-- half cart width to A/B pillar mounts -->
-
-  <!-- ====================================================================
-       Helper macro: simple box-shaped sensor placeholder + frame
-       ==================================================================== -->
+  <!-- Helper: simple box-shaped sensor placeholder + frame -->
   <xacro:macro name="sensor_box" params="name parent xyz rpy size:='0.05 0.05 0.05' rgba:='0.1 0.1 0.1 1.0'">
     <link name="${name}_link">
       <visual>
@@ -65,108 +38,104 @@
     </joint>
   </xacro:macro>
 
-  <!-- ====================================================================
-       Top-level sensor stack macro
-       ==================================================================== -->
   <xacro:macro name="gem_e4_sensors" params="parent:='base_link'">
 
-    <!-- =========== LiDAR — Livox Mid-360 on roof mast =========== -->
+    <!-- ============ LiDAR — Livox Mid-360 ============ -->
     <xacro:sensor_box name="lidar"
                       parent="${parent}"
-                      xyz="0.0 0.0 ${ROOF_Z + MAST_HEIGHT}"
-                      rpy="0 0 0"
+                      xyz="${EXT_LIDAR_X} ${EXT_LIDAR_Y} ${EXT_LIDAR_Z}"
+                      rpy="${EXT_LIDAR_R} ${EXT_LIDAR_P} ${EXT_LIDAR_YAW}"
                       size="0.065 0.065 0.060"
                       rgba="0.15 0.15 0.15 1"/>
     <gazebo reference="lidar_link">
       <sensor type="gpu_lidar" name="livox_mid360">
-        <update_rate>10</update_rate>
+        <update_rate>${LIDAR_RATE_HZ}</update_rate>
         <lidar>
           <scan>
             <horizontal>
-              <samples>2400</samples>
+              <samples>${LIDAR_H_SAMPLES}</samples>
               <resolution>1</resolution>
-              <min_angle>-3.14159</min_angle>
-              <max_angle>3.14159</max_angle>
+              <min_angle>${LIDAR_H_MIN_RAD}</min_angle>
+              <max_angle>${LIDAR_H_MAX_RAD}</max_angle>
             </horizontal>
             <vertical>
-              <samples>32</samples>
+              <samples>${LIDAR_V_SAMPLES}</samples>
               <resolution>1</resolution>
-              <!-- Mid-360 covers about -7° to +52°; approximate -->
-              <min_angle>-0.122</min_angle>
-              <max_angle>0.908</max_angle>
+              <min_angle>${LIDAR_V_MIN_RAD}</min_angle>
+              <max_angle>${LIDAR_V_MAX_RAD}</max_angle>
             </vertical>
           </scan>
           <range>
-            <min>0.1</min>
-            <max>70.0</max>
+            <min>${LIDAR_RANGE_MIN_M}</min>
+            <max>${LIDAR_RANGE_MAX_M}</max>
             <resolution>0.01</resolution>
           </range>
           <noise>
             <type>gaussian</type>
             <mean>0.0</mean>
-            <stddev>0.02</stddev>
+            <stddev>${LIDAR_NOISE_STDDEV}</stddev>
           </noise>
         </lidar>
-        <topic>/livox/lidar</topic>
+        <topic>${TOPIC_LIDAR}</topic>
         <gz_frame_id>lidar_link</gz_frame_id>
         <always_on>true</always_on>
         <visualize>false</visualize>
       </sensor>
     </gazebo>
 
-    <!-- =========== Front stereo — ZED 2i =========== -->
+    <!-- ============ ZED 2i — front stereo ============ -->
     <xacro:sensor_box name="zed2i_camera"
                       parent="${parent}"
-                      xyz="${WINDSHIELD_X} 0.0 ${WINDSHIELD_Z}"
-                      rpy="0 0 0"
+                      xyz="${EXT_ZED2I_X} ${EXT_ZED2I_Y} ${EXT_ZED2I_Z}"
+                      rpy="${EXT_ZED2I_R} ${EXT_ZED2I_P} ${EXT_ZED2I_YAW}"
                       size="0.18 0.03 0.03"
                       rgba="0.1 0.1 0.1 1"/>
     <gazebo reference="zed2i_camera_link">
       <sensor name="zed2i_left" type="camera">
-        <update_rate>30</update_rate>
+        <update_rate>${ZED2I_RATE_HZ}</update_rate>
         <camera>
-          <horizontal_fov>1.91986</horizontal_fov> <!-- ~110° H -->
-          <image><width>1280</width><height>720</height><format>R8G8B8</format></image>
+          <horizontal_fov>${ZED2I_HFOV_RAD}</horizontal_fov>
+          <image><width>${ZED2I_WIDTH_PX}</width><height>${ZED2I_HEIGHT_PX}</height><format>R8G8B8</format></image>
           <clip><near>0.1</near><far>100</far></clip>
         </camera>
-        <topic>/zed2i/left/image_raw</topic>
+        <topic>${TOPIC_ZED2I_LEFT}</topic>
         <gz_frame_id>zed2i_camera_link</gz_frame_id>
         <always_on>true</always_on>
       </sensor>
       <sensor name="zed2i_depth" type="depth_camera">
         <update_rate>15</update_rate>
         <camera>
-          <horizontal_fov>1.91986</horizontal_fov>
-          <image><width>1280</width><height>720</height></image>
-          <clip><near>0.3</near><far>20</far></clip>
+          <horizontal_fov>${ZED2I_HFOV_RAD}</horizontal_fov>
+          <image><width>${ZED2I_WIDTH_PX}</width><height>${ZED2I_HEIGHT_PX}</height></image>
+          <clip><near>${ZED2I_RANGE_NEAR_M}</near><far>${ZED2I_RANGE_FAR_M}</far></clip>
         </camera>
-        <topic>/zed2i/depth/depth_registered</topic>
+        <topic>${TOPIC_ZED2I_DEPTH}</topic>
         <gz_frame_id>zed2i_camera_link</gz_frame_id>
       </sensor>
     </gazebo>
 
-    <!-- =========== Front auto-grade mono — Leopard IMX390 (GMSL) =========== -->
+    <!-- ============ Leopard IMX390 GMSL front mono ============ -->
     <xacro:sensor_box name="front_cam"
                       parent="${parent}"
-                      xyz="${WINDSHIELD_X} -0.15 ${WINDSHIELD_Z}"
-                      rpy="0 0 0"
+                      xyz="${EXT_FRONTCAM_X} ${EXT_FRONTCAM_Y} ${EXT_FRONTCAM_Z}"
+                      rpy="${EXT_FRONTCAM_R} ${EXT_FRONTCAM_P} ${EXT_FRONTCAM_YAW}"
                       size="0.05 0.04 0.04"
                       rgba="0.05 0.05 0.05 1"/>
     <gazebo reference="front_cam_link">
       <sensor name="front_cam_imx390" type="camera">
-        <update_rate>30</update_rate>
+        <update_rate>${FRONTCAM_RATE_HZ}</update_rate>
         <camera>
-          <horizontal_fov>1.0472</horizontal_fov> <!-- 60° narrow for HDR -->
-          <image><width>1920</width><height>1080</height><format>R8G8B8</format></image>
+          <horizontal_fov>${FRONTCAM_HFOV_RAD}</horizontal_fov>
+          <image><width>${FRONTCAM_WIDTH_PX}</width><height>${FRONTCAM_HEIGHT_PX}</height><format>R8G8B8</format></image>
           <clip><near>0.1</near><far>200</far></clip>
         </camera>
-        <topic>/front_cam/image_raw</topic>
+        <topic>${TOPIC_FRONTCAM}</topic>
         <gz_frame_id>front_cam_link</gz_frame_id>
       </sensor>
     </gazebo>
 
-    <!-- =========== Surround corner cameras (4× e-CAM130, 120° FOV) =========== -->
-    <xacro:macro name="corner_cam" params="name xyz yaw">
+    <!-- ============ Corner cameras (4× e-CAM130 GMSL, 120° FOV) ============ -->
+    <xacro:macro name="corner_cam" params="name xyz yaw topic">
       <xacro:sensor_box name="${name}"
                         parent="${parent}"
                         xyz="${xyz}"
@@ -175,88 +144,86 @@
                         rgba="0.05 0.05 0.05 1"/>
       <gazebo reference="${name}_link">
         <sensor name="${name}_imx377" type="camera">
-          <update_rate>20</update_rate>
+          <update_rate>${CORNERCAM_RATE_HZ}</update_rate>
           <camera>
-            <horizontal_fov>2.0944</horizontal_fov> <!-- 120° -->
-            <image><width>1280</width><height>720</height><format>R8G8B8</format></image>
+            <horizontal_fov>${CORNERCAM_HFOV_RAD}</horizontal_fov>
+            <image><width>${CORNERCAM_WIDTH_PX}</width><height>${CORNERCAM_HEIGHT_PX}</height><format>R8G8B8</format></image>
             <clip><near>0.1</near><far>50</far></clip>
           </camera>
-          <topic>/${name}/image_raw</topic>
+          <topic>${topic}</topic>
           <gz_frame_id>${name}_link</gz_frame_id>
         </sensor>
       </gazebo>
     </xacro:macro>
 
-    <xacro:corner_cam name="cam_fl" xyz="${WINDSHIELD_X - 0.1}  ${HALF_WIDTH} ${WINDSHIELD_Z - 0.2}" yaw=" 0.785"/>  <!-- forward-left, +45° -->
-    <xacro:corner_cam name="cam_fr" xyz="${WINDSHIELD_X - 0.1} -${HALF_WIDTH} ${WINDSHIELD_Z - 0.2}" yaw="-0.785"/>  <!-- forward-right, -45° -->
-    <xacro:corner_cam name="cam_rl" xyz="${REAR_X + 0.4}        ${HALF_WIDTH} ${WINDSHIELD_Z - 0.2}" yaw=" 2.356"/>  <!-- rear-left, 135° -->
-    <xacro:corner_cam name="cam_rr" xyz="${REAR_X + 0.4}       -${HALF_WIDTH} ${WINDSHIELD_Z - 0.2}" yaw="-2.356"/>  <!-- rear-right, -135° -->
+    <xacro:corner_cam name="cam_fl" xyz="${EXT_CAM_FL_X} ${EXT_CAM_FL_Y} ${EXT_CAM_FL_Z}" yaw="${EXT_CAM_FL_YAW}" topic="${TOPIC_CAM_FL}"/>
+    <xacro:corner_cam name="cam_fr" xyz="${EXT_CAM_FR_X} ${EXT_CAM_FR_Y} ${EXT_CAM_FR_Z}" yaw="${EXT_CAM_FR_YAW}" topic="${TOPIC_CAM_FR}"/>
+    <xacro:corner_cam name="cam_rl" xyz="${EXT_CAM_RL_X} ${EXT_CAM_RL_Y} ${EXT_CAM_RL_Z}" yaw="${EXT_CAM_RL_YAW}" topic="${TOPIC_CAM_RL}"/>
+    <xacro:corner_cam name="cam_rr" xyz="${EXT_CAM_RR_X} ${EXT_CAM_RR_Y} ${EXT_CAM_RR_Z}" yaw="${EXT_CAM_RR_YAW}" topic="${TOPIC_CAM_RR}"/>
 
-    <!-- =========== Rear stereo — ZED Mini =========== -->
+    <!-- ============ ZED Mini rear stereo ============ -->
     <xacro:sensor_box name="zed_mini_camera"
                       parent="${parent}"
-                      xyz="${REAR_X} 0.0 ${WINDSHIELD_Z - 0.1}"
-                      rpy="0 0 3.14159"
+                      xyz="${EXT_ZEDMINI_X} ${EXT_ZEDMINI_Y} ${EXT_ZEDMINI_Z}"
+                      rpy="${EXT_ZEDMINI_R} ${EXT_ZEDMINI_P} ${EXT_ZEDMINI_YAW}"
                       size="0.12 0.025 0.025"
                       rgba="0.1 0.1 0.1 1"/>
     <gazebo reference="zed_mini_camera_link">
       <sensor name="zed_mini_left" type="camera">
-        <update_rate>30</update_rate>
+        <update_rate>${ZEDMINI_RATE_HZ}</update_rate>
         <camera>
-          <horizontal_fov>1.74533</horizontal_fov> <!-- ~100° -->
-          <image><width>1280</width><height>720</height><format>R8G8B8</format></image>
+          <horizontal_fov>${ZEDMINI_HFOV_RAD}</horizontal_fov>
+          <image><width>${ZEDMINI_WIDTH_PX}</width><height>${ZEDMINI_HEIGHT_PX}</height><format>R8G8B8</format></image>
           <clip><near>0.1</near><far>50</far></clip>
         </camera>
-        <topic>/zed_mini/left/image_raw</topic>
+        <topic>${TOPIC_ZEDMINI}</topic>
         <gz_frame_id>zed_mini_camera_link</gz_frame_id>
       </sensor>
     </gazebo>
 
-    <!-- =========== GNSS antennas (moving-baseline pair) =========== -->
-    <!-- Front antenna at roof front-center, rear antenna ≥40 cm aft along +X axis;
-         the pair vector defines vehicle yaw at rest. -->
+    <!-- ============ GNSS antennas (moving baseline pair) ============ -->
     <xacro:sensor_box name="gnss_antenna1"
                       parent="${parent}"
-                      xyz="0.6 0.0 ${ROOF_Z + 0.05}"
+                      xyz="${EXT_GNSS1_X} ${EXT_GNSS1_Y} ${EXT_GNSS1_Z}"
                       rpy="0 0 0"
                       size="0.08 0.08 0.02"
                       rgba="0.0 0.4 0.0 1"/>
     <xacro:sensor_box name="gnss_antenna2"
                       parent="${parent}"
-                      xyz="-0.4 0.0 ${ROOF_Z + 0.05}"
+                      xyz="${EXT_GNSS2_X} ${EXT_GNSS2_Y} ${EXT_GNSS2_Z}"
                       rpy="0 0 0"
                       size="0.08 0.08 0.02"
                       rgba="0.0 0.4 0.0 1"/>
     <gazebo reference="gnss_antenna1_link">
       <sensor name="gnss_rover" type="gps">
-        <update_rate>10</update_rate>
-        <topic>/gnss/fix</topic>
+        <update_rate>${GNSS_RATE_HZ}</update_rate>
+        <topic>${TOPIC_GNSS_FIX}</topic>
         <gz_frame_id>gnss_antenna1_link</gz_frame_id>
       </sensor>
     </gazebo>
 
-    <!-- =========== IMU — VectorNav VN-100 =========== -->
+    <!-- ============ IMU — VectorNav VN-100 ============ -->
     <xacro:sensor_box name="imu"
                       parent="${parent}"
-                      xyz="0.0 0.0 0.30"
-                      rpy="0 0 0"
+                      xyz="${EXT_IMU_X} ${EXT_IMU_Y} ${EXT_IMU_Z}"
+                      rpy="${EXT_IMU_R} ${EXT_IMU_P} ${EXT_IMU_YAW}"
                       size="0.05 0.04 0.02"
                       rgba="0.4 0.0 0.0 1"/>
     <gazebo reference="imu_link">
       <sensor name="vn100_imu" type="imu">
-        <update_rate>200</update_rate>
-        <topic>/vn100/imu</topic>
+        <update_rate>${IMU_RATE_HZ}</update_rate>
+        <topic>${TOPIC_IMU}</topic>
         <gz_frame_id>imu_link</gz_frame_id>
         <imu>
           <angular_velocity>
-            <x><noise type="gaussian"><mean>0</mean><stddev>0.0001</stddev></noise></x>
-            <y><noise type="gaussian"><mean>0</mean><stddev>0.0001</stddev></noise></y>
-            <z><noise type="gaussian"><mean>0</mean><stddev>0.0001</stddev></noise></z>
+            <x><noise type="gaussian"><mean>0</mean><stddev>${IMU_GYRO_NOISE_STDDEV}</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>${IMU_GYRO_NOISE_STDDEV}</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>${IMU_GYRO_NOISE_STDDEV}</stddev></noise></z>
           </angular_velocity>
           <linear_acceleration>
-            <x><noise type="gaussian"><mean>0</mean><stddev>0.005</stddev></noise></x>
-            <y><noise type="gaussian"><mean>0</mean><stddev>0.005</stddev></noise></y>
-            <z><noise type="gaussian"><mean>0</mean><stddev>0.005</stddev></noise></z>
+            <x><noise type="gaussian"><mean>0</mean><stddev>${IMU_ACCEL_NOISE_STDDEV}</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>${IMU_ACCEL_NOISE_STDDEV}</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>${IMU_ACCEL_NOISE_STDDEV}</stddev></noise></z>
           </linear_acceleration>
         </imu>
       </sensor>
