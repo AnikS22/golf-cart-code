@@ -23,6 +23,10 @@ FAU MPCR self-driving GEM E4 conversion. "Tiny Waymo" — full self-driving stac
 
 ## Resume on a new machine
 
+Pick this project up on any laptop, FAU lab Linux box, second Mac, etc. — without losing context.
+
+### Quick start
+
 ```bash
 git clone https://github.com/AnikS22/golf-cart-code.git ~/Desktop/Golf\ Cart\ Code
 cd ~/Desktop/Golf\ Cart\ Code
@@ -30,7 +34,75 @@ bin/setup_new_machine.sh
 claude        # memory loads automatically
 ```
 
-Full details + Linux + cross-platform path-encoding gotchas: [`CROSS_DEVICE_RESUME.md`](CROSS_DEVICE_RESUME.md).
+That's it. The new Claude session is ~95% as informed as the original.
+
+### How it works
+
+Claude Code stores memory at `~/.claude/projects/<encoded-cwd>/memory/`. We've made that path a **symlink** into the repo on every device:
+
+```
+~/.claude/projects/-Users-mpcr-Desktop-Golf-Cart-Code/memory
+       └── symlink → <repo>/.claude/memory
+```
+
+So memory writes from Claude → land in the repo → auto-commit pushes to GitHub → other devices `git pull` → those devices see the same memory. **One canonical store, mirrored across every device that has the repo cloned.**
+
+`bin/setup_new_machine.sh` is idempotent: detects the right encoded path, creates the symlink (backing up any existing memory), and reports what tooling is missing (Docker Desktop, Foxglove, Homebrew, gh CLI).
+
+### Path encoding (the gotcha)
+
+Claude Code derives `<encoded-cwd>` from the absolute path by replacing `/` and ` ` (space) with `-`:
+
+| Working dir | Encoded |
+|---|---|
+| `/Users/mpcr/Desktop/Golf Cart Code` (macOS) | `-Users-mpcr-Desktop-Golf-Cart-Code` |
+| `/home/mpcr/Desktop/Golf Cart Code` (Linux) | `-home-mpcr-Desktop-Golf-Cart-Code` |
+
+Different encodings = Claude treats them as different projects. The setup script handles this automatically. If you want `claude --resume <session-id>` to work for transcripts copied between devices, **clone to the same relative path on every machine** (e.g. always `~/Desktop/Golf Cart Code`).
+
+### Linux dev box (FAU lab, Jetson, etc.)
+
+```bash
+mkdir -p ~/Desktop && git clone https://github.com/AnikS22/golf-cart-code.git ~/Desktop/Golf\ Cart\ Code
+cd ~/Desktop/Golf\ Cart\ Code
+bin/setup_new_machine.sh
+
+# Optional: cron-based auto-commit (Linux equivalent of the macOS launchd job)
+( crontab -l 2>/dev/null; echo "*/10 * * * * $HOME/Desktop/Golf\\ Cart\\ Code/bin/sync.sh" ) | crontab -
+
+claude
+```
+
+### Second Mac
+
+```bash
+brew install --cask docker foxglove   # optional but useful
+git clone https://github.com/AnikS22/golf-cart-code.git ~/Desktop/Golf\ Cart\ Code
+cd ~/Desktop/Golf\ Cart\ Code
+bin/setup_new_machine.sh
+bin/install_autocommit.sh             # if you want this Mac to auto-push too
+claude
+```
+
+### What does and doesn't travel with the repo
+
+| | Travels via repo | Lives only on the host machine |
+|---|---|---|
+| Memory files (project, user, feedback, EPAS18 ref, J1939 ref) | ✓ | |
+| All project code, docs, plans, recovered 2020 artifacts | ✓ | |
+| Auto-commit launchd plist (template) | ✓ (run `install_autocommit.sh` to activate per-machine) | |
+| Conversation transcripts (`*.jsonl`, ~9 MB each) | | ✓ (manual `rsync` if you want them) |
+| Sub-agent task output caches | | ✓ |
+| Docker images (~5 GB) | | ✓ (rebuild with `bin/sim_macos.sh build`) |
+| ROS 2 `build/install/log/` artifacts | | ✓ (rebuild with `colcon build`) |
+
+### Limitations
+
+- Two devices running Claude in the same repo at the same time → two independent sessions. They both push to the repo, so memory edits eventually merge, but there's no real-time collab.
+- Sessions auto-expire after 30 days by default. The repo + memory are durable; transcripts are ephemeral.
+- `claude.ai/code` (web) and the CLI maintain separate session histories — they don't sync with each other.
+
+For full details: [`CROSS_DEVICE_RESUME.md`](CROSS_DEVICE_RESUME.md).
 
 ## Auto-commit
 
