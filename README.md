@@ -15,10 +15,22 @@ FAU MPCR self-driving GEM E4 conversion. "Tiny Waymo" — full self-driving stac
 ## Read this first
 
 1. [`Masterplan.md`](Masterplan.md) — project context, phased roadmap, BOM, open questions.
-2. [`Hardware/system_design.md`](Hardware/system_design.md) — locked component selection + procurement priority.
-3. [`Software/dbw_translation_architecture.md`](Software/dbw_translation_architecture.md) — how a ROS ackermann command becomes wheel motion.
-4. [`Sim/SIM_PURPOSE.md`](Sim/SIM_PURPOSE.md) — what the sim is for and how to run it.
-5. [`Sim/digital_twin_consistency.md`](Sim/digital_twin_consistency.md) — the rules that keep sim ↔ real parity.
+2. [`STATUS.md`](STATUS.md) — current status + week-by-week timeline.
+3. [`Hardware/system_design.md`](Hardware/system_design.md) — locked component selection + procurement priority.
+4. [`Software/dbw_translation_architecture.md`](Software/dbw_translation_architecture.md) — how a ROS ackermann command becomes wheel motion.
+5. [`Sim/SIM_PURPOSE.md`](Sim/SIM_PURPOSE.md) — what the sim is for and how to run it.
+6. [`Sim/digital_twin_consistency.md`](Sim/digital_twin_consistency.md) — the rules that keep sim ↔ real parity.
+
+## Resume on a new machine
+
+```bash
+git clone https://github.com/AnikS22/golf-cart-code.git ~/Desktop/Golf\ Cart\ Code
+cd ~/Desktop/Golf\ Cart\ Code
+bin/setup_new_machine.sh
+claude        # memory loads automatically
+```
+
+Full details + Linux + cross-platform path-encoding gotchas: [`CROSS_DEVICE_RESUME.md`](CROSS_DEVICE_RESUME.md).
 
 ## Auto-commit
 
