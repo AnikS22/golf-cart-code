@@ -38,3 +38,10 @@ rosbags/
 *.pem
 *.key
 .env
+
+# Sim preview regenerable artifacts (regenerate via bin/preview_urdf.sh)
+Sim/macos/entrypoint.sh.tmp
+Sim/preview/cart_parameters.xacro
+Sim/preview/gem_e4_sensors.urdf.xacro
+Sim/preview/.gem_e4_preview_resolved.urdf.xacro
+Sim/preview/gem_e4_preview.urdf

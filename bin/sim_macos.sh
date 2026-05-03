@@ -42,7 +42,6 @@ ensure_docker_running() {
 
 build_image() {
     ensure_docker_running
-    cp "$ENTRYPOINT" "$REPO/Sim/macos/entrypoint.sh.tmp" 2>/dev/null || true
     echo "Building $IMAGE (first time: ~5 GB, 20-30 min, only happens once)..."
     docker build \
         -t "$IMAGE" \
