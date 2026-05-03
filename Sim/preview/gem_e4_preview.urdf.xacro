@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!--
+  gem_e4_preview.urdf.xacro
+  =========================
+  Standalone preview URDF for offline visualization on macOS / Foxglove
+  / web URDF viewers. NOT used by the sim or the real cart. Just for
+  "what does the digital twin look like."
+
+  Differs from gem_e4_robot.urdf.xacro in that it does NOT include the
+  upstream gem_description chassis package — instead it ships a stub
+  cart body so xacro can fully expand without ROS environment.
+
+  Regenerate the flat URDF with: bin/preview_urdf.sh
+-->
+<robot name="gem_e4_preview" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find xacro_search_path)/cart_parameters.xacro"/>
+
+  <!-- Stub chassis (instead of upstream gem_description) -->
+  <link name="base_footprint"/>
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 ${VEHICLE_HEIGHT_M / 2}" rpy="0 0 0"/>
+      <geometry><box size="${VEHICLE_LENGTH_M} ${VEHICLE_WIDTH_M} ${VEHICLE_HEIGHT_M}"/></geometry>
+      <material name="cart_white"><color rgba="0.95 0.95 0.95 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${VEHICLE_HEIGHT_M / 2}" rpy="0 0 0"/>
+      <geometry><box size="${VEHICLE_LENGTH_M} ${VEHICLE_WIDTH_M} ${VEHICLE_HEIGHT_M}"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="${VEHICLE_MASS_KG}"/>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+      <inertia ixx="100" iyy="500" izz="500" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+  <joint name="base_footprint_to_base_link" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Wheel placeholders (visual only; sim uses upstream URDF for real physics) -->
+  <xacro:macro name="wheel_stub" params="name xyz">
+    <link name="${name}_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${WHEEL_RADIUS_M}" length="0.18"/></geometry>
+        <material name="wheel_black"><color rgba="0.05 0.05 0.05 1.0"/></material>
+      </visual>
+    </link>
+    <joint name="${name}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="${name}_link"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel_stub name="wheel_fl" xyz=" ${WHEELBASE_M/2}  ${TRACK_WIDTH_M/2} ${WHEEL_RADIUS_M}"/>
+  <xacro:wheel_stub name="wheel_fr" xyz=" ${WHEELBASE_M/2} -${TRACK_WIDTH_M/2} ${WHEEL_RADIUS_M}"/>
+  <xacro:wheel_stub name="wheel_rl" xyz="-${WHEELBASE_M/2}  ${TRACK_WIDTH_M/2} ${WHEEL_RADIUS_M}"/>
+  <xacro:wheel_stub name="wheel_rr" xyz="-${WHEELBASE_M/2} -${TRACK_WIDTH_M/2} ${WHEEL_RADIUS_M}"/>
+
+  <!-- Sensor stack (canonical) -->
+  <xacro:include filename="$(find xacro_search_path)/gem_e4_sensors.urdf.xacro"/>
+  <xacro:gem_e4_sensors parent="base_link"/>
+
+</robot>
