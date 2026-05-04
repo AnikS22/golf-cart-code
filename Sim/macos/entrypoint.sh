@@ -3,7 +3,10 @@
 # ROS-sourced shell so the user can `ros2 launch gem_sim sim_full.launch.py`.
 #
 # All output goes to /tmp/*.log inside the container; docker logs still works.
-set -u
+#
+# NOTE: do not use `set -u` here. ROS 2's setup.bash references several
+# unbound variables (AMENT_TRACE_SETUP_FILES, COLCON_*) which trip strict
+# unbound-var mode and cause the container to exit on launch.
 
 DISPLAY_NUM=99
 export DISPLAY=":${DISPLAY_NUM}"

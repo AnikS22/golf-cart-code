@@ -45,3 +45,7 @@ Sim/preview/cart_parameters.xacro
 Sim/preview/gem_e4_sensors.urdf.xacro
 Sim/preview/.gem_e4_preview_resolved.urdf.xacro
 Sim/preview/gem_e4_preview.urdf
+
+# Upstream ROS workspaces — cloned per-machine, not vendored
+Sim/Cartagena_GEM_E4_workspace/ros2_ws/src/gem_ws/
+Sim/Cartagena_GEM_E4_workspace/ros2_ws/src/gem-simulator/

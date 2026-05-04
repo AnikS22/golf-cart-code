@@ -202,18 +202,21 @@
       </sensor>
     </gazebo>
 
-    <!-- ============ IMU — VectorNav VN-100 ============ -->
-    <xacro:sensor_box name="imu"
+    <!-- ============ IMU — VectorNav VN-100
+         Link name is vn100_link (not imu_link) to avoid collision with
+         the upstream gem-simulator chassis URDF which has its own
+         imu_link. ============ -->
+    <xacro:sensor_box name="vn100"
                       parent="${parent}"
                       xyz="${EXT_IMU_X} ${EXT_IMU_Y} ${EXT_IMU_Z}"
                       rpy="${EXT_IMU_R} ${EXT_IMU_P} ${EXT_IMU_YAW}"
                       size="0.05 0.04 0.02"
                       rgba="0.4 0.0 0.0 1"/>
-    <gazebo reference="imu_link">
+    <gazebo reference="vn100_link">
       <sensor name="vn100_imu" type="imu">
         <update_rate>${IMU_RATE_HZ}</update_rate>
         <topic>${TOPIC_IMU}</topic>
-        <gz_frame_id>imu_link</gz_frame_id>
+        <gz_frame_id>vn100_link</gz_frame_id>
         <imu>
           <angular_velocity>
             <x><noise type="gaussian"><mean>0</mean><stddev>${IMU_GYRO_NOISE_STDDEV}</stddev></noise></x>

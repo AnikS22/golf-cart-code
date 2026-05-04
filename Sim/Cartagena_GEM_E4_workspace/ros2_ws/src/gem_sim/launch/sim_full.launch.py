@@ -13,12 +13,15 @@
 # will publish. See Sim/digital_twin_consistency.md for the contract.
 
 import os
+import subprocess
+import tempfile
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -53,8 +56,15 @@ def generate_launch_description():
     urdf_xacro_path = PathJoinSubstitution([
         pkg_gem_sim, "urdf", "gem_e4_robot.urdf.xacro",
     ])
+    # Wrap the xacro Command in ParameterValue(value_type=str) so launch
+    # treats it as a string, not as YAML. Without this, ROS 2 launch
+    # tries to YAML-parse the URDF and errors out with "Unable to parse
+    # the value of parameter robot_description as yaml".
     robot_description = {
-        "robot_description": Command(["xacro ", urdf_xacro_path]),
+        "robot_description": ParameterValue(
+            Command(["xacro ", urdf_xacro_path]),
+            value_type=str,
+        ),
         "use_sim_time": use_sim_time,
     }
 
@@ -66,17 +76,33 @@ def generate_launch_description():
         launch_arguments={"gz_args": [world_path, " -r -v 4"]}.items(),
     )
 
-    # ─── Spawn the cart ───
-    spawn = Node(
-        package="ros_gz_sim",
-        executable="create",
-        arguments=[
-            "-name", "gem_e4",
-            "-topic", "robot_description",
-            "-x", "0.0", "-y", "0.0", "-z", "0.20",
-        ],
-        output="screen",
-    )
+    # ─── Render URDF to a temp file (Humble RSP doesn't publish
+    #     /robot_description as a topic by default, so we don't rely on
+    #     the topic-based spawn flow — render once, pass the file path
+    #     directly to ros_gz_sim create via -file). ───
+    def _render_urdf(context, *args, **kwargs):
+        xacro_path = os.path.join(
+            get_package_share_directory("gem_sim"),
+            "urdf", "gem_e4_robot.urdf.xacro",
+        )
+        urdf_path = os.path.join(tempfile.gettempdir(), "gem_e4_robot.urdf")
+        urdf_xml = subprocess.check_output(
+            ["xacro", xacro_path], text=True)
+        with open(urdf_path, "w") as f:
+            f.write(urdf_xml)
+        spawn_node = Node(
+            package="ros_gz_sim",
+            executable="create",
+            arguments=[
+                "-name", "gem_e4",
+                "-file", urdf_path,
+                "-x", "0.0", "-y", "0.0", "-z", "0.20",
+            ],
+            output="screen",
+        )
+        return [spawn_node]
+
+    spawn = OpaqueFunction(function=_render_urdf)
 
     # ─── Robot state publisher ───
     rsp = Node(

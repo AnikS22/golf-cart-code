@@ -12,14 +12,31 @@ FAU MPCR self-driving GEM E4 conversion. "Tiny Waymo" — full self-driving stac
 | [`Masterplan.md`](Masterplan.md) | The canonical project plan. |
 | [`bin/`](bin/) | Helper scripts (auto-commit, etc.). |
 
+## Run the sim (Linux, recommended)
+
+The full digital-twin sim runs on Ubuntu 22.04. **5-minute clone-and-go**:
+
+```bash
+git clone https://github.com/AnikS22/golf-cart-code.git ~/golf-cart-code
+cd ~/golf-cart-code
+bin/setup_linux.sh           # ROS 2 Humble + Gazebo Harmonic + project deps + build
+bin/setup_linux.sh launch    # opens Gazebo with the FAU breezeway + cart + 9 sensors
+```
+
+Full guide: [`LINUX_QUICKSTART.md`](LINUX_QUICKSTART.md).
+
+> macOS host caveat: ROS 2 + Gazebo are fragile on macOS (Apple Silicon Rosetta breaks Gazebo's shared-memory tracking; ROS 2 macOS support is unofficial). For visual-only confirmation on Mac, use `bin/preview_urdf.sh` then drag the URDF into Foxglove.app. For real dev, use Linux.
+
 ## Read this first
 
 1. [`Masterplan.md`](Masterplan.md) — project context, phased roadmap, BOM, open questions.
 2. [`STATUS.md`](STATUS.md) — current status + week-by-week timeline.
-3. [`Hardware/system_design.md`](Hardware/system_design.md) — locked component selection + procurement priority.
-4. [`Software/dbw_translation_architecture.md`](Software/dbw_translation_architecture.md) — how a ROS ackermann command becomes wheel motion.
-5. [`Sim/SIM_PURPOSE.md`](Sim/SIM_PURPOSE.md) — what the sim is for and how to run it.
-6. [`Sim/digital_twin_consistency.md`](Sim/digital_twin_consistency.md) — the rules that keep sim ↔ real parity.
+3. [`LINUX_QUICKSTART.md`](LINUX_QUICKSTART.md) — clone-and-go setup of the sim.
+4. [`Hardware/system_design.md`](Hardware/system_design.md) — locked component selection + procurement priority.
+5. [`Software/CART_CONTROL_PLAN.md`](Software/CART_CONTROL_PLAN.md) — manual ROS-based control plan, no autonomy.
+6. [`Software/dbw_translation_architecture.md`](Software/dbw_translation_architecture.md) — how a ROS ackermann command becomes wheel motion.
+7. [`Sim/SIM_PURPOSE.md`](Sim/SIM_PURPOSE.md) — what the sim is for.
+8. [`Sim/digital_twin_consistency.md`](Sim/digital_twin_consistency.md) — sim↔real parity rules.
 
 ## Resume on a new machine
 
