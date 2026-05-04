@@ -40,17 +40,28 @@ def generate_launch_description():
         default_value="true",
         description="Use Gazebo clock for ROS time. Always true in sim.",
     )
+    headless_arg = DeclareLaunchArgument(
+        "headless",
+        default_value="false",
+        description="Run Gazebo server-only (no GUI). Use true on a headless box like the Jetson over SSH.",
+    )
 
     world = LaunchConfiguration("world")
     use_sim_time = LaunchConfiguration("use_sim_time")
+    headless = LaunchConfiguration("headless")
 
     # World file lives in pure_pursuit/worlds/ for now. When we extend to
     # full FAU campus we'll move worlds into gem_sim/worlds/ to keep
     # everything in one package.
-    world_path = PathJoinSubstitution([
-        FindPackageShare("pure_pursuit"), "worlds",
-        [world, ".sdf"],
-    ])
+    # Note: PathJoinSubstitution can't handle a nested list, so we flatten
+    # the world+.sdf concat via a small helper.
+    def _world_path(context):
+        world_name = LaunchConfiguration("world").perform(context)
+        return os.path.join(
+            get_package_share_directory("pure_pursuit"),
+            "worlds",
+            f"{world_name}.sdf",
+        )
 
     # URDF generation via xacro
     urdf_xacro_path = PathJoinSubstitution([
@@ -69,12 +80,23 @@ def generate_launch_description():
     }
 
     # ─── Gazebo Harmonic ───
-    gazebo = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([pkg_ros_gz_sim, "launch", "gz_sim.launch.py"]),
-        ]),
-        launch_arguments={"gz_args": [world_path, " -r -v 4"]}.items(),
-    )
+    # Defer gazebo include to an OpaqueFunction so we can compute the world
+    # path at launch time (after `world` arg has been parsed).
+    def _make_gazebo(context, *args, **kwargs):
+        wp = _world_path(context)
+        is_headless = LaunchConfiguration("headless").perform(context).lower() == "true"
+        # -s = server-only (no GUI). Required on headless Jetson over SSH.
+        gz_flags = "-r -s -v 4" if is_headless else "-r -v 4"
+        return [IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    get_package_share_directory("ros_gz_sim"),
+                    "launch", "gz_sim.launch.py",
+                )
+            ),
+            launch_arguments={"gz_args": f"{wp} {gz_flags}"}.items(),
+        )]
+    gazebo = OpaqueFunction(function=_make_gazebo)
 
     # ─── Render URDF to a temp file (Humble RSP doesn't publish
     #     /robot_description as a topic by default, so we don't rely on
@@ -135,6 +157,7 @@ def generate_launch_description():
     return LaunchDescription([
         world_arg,
         use_sim_time_arg,
+        headless_arg,
         gazebo,
         rsp,
         spawn,

@@ -26,42 +26,12 @@
   <!-- ============ Step 1: load canonical parameters ============ -->
   <xacro:include filename="$(find gem_sim)/urdf/cart_parameters.xacro"/>
 
-  <!-- ============ Step 2: include upstream chassis URDF ============
-       The upstream GEM-Illinois URDF defines: base_footprint, base_link,
-       chair_link, door_link, front_rack_link, the four wheels (front_left,
-       front_right, rear_left, rear_right), and the steering hinges.
-
-       If you want to bypass the upstream and use a minimal stub for sim-only
-       testing, comment out this include and uncomment the stub below.
-  -->
+  <!-- Step 2: include upstream chassis URDF.
+       The GEM-Illinois URDF defines base_footprint, base_link, the four
+       wheels, steering hinges, etc. We attach our sensor stack on top. -->
   <xacro:include filename="$(find gem_description)/urdf/e4/gem_e4.urdf.xacro"/>
 
-  <!-- Stub fallback — uncomment to test without the upstream package
-  <link name="base_footprint"/>
-  <link name="base_link">
-    <visual>
-      <origin xyz="0 0 ${VEHICLE_HEIGHT_M / 2}" rpy="0 0 0"/>
-      <geometry><box size="${VEHICLE_LENGTH_M} ${VEHICLE_WIDTH_M} ${VEHICLE_HEIGHT_M}"/></geometry>
-      <material name="cart_white"><color rgba="1.0 1.0 1.0 1.0"/></material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 ${VEHICLE_HEIGHT_M / 2}" rpy="0 0 0"/>
-      <geometry><box size="${VEHICLE_LENGTH_M} ${VEHICLE_WIDTH_M} ${VEHICLE_HEIGHT_M}"/></geometry>
-    </collision>
-    <inertial>
-      <mass value="${VEHICLE_MASS_KG}"/>
-      <origin xyz="0 0 0.5" rpy="0 0 0"/>
-      <inertia ixx="100" iyy="500" izz="500" ixy="0" ixz="0" iyz="0"/>
-    </inertial>
-  </link>
-  <joint name="base_footprint_to_base_link" type="fixed">
-    <parent link="base_footprint"/>
-    <child link="base_link"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-  </joint>
-  -->
-
-  <!-- ============ Step 3: attach sensor stack to base_link ============ -->
+  <!-- Step 3: attach sensor stack to base_link -->
   <xacro:include filename="$(find gem_sim)/urdf/gem_e4_sensors.urdf.xacro"/>
   <xacro:gem_e4_sensors parent="base_link"/>
 

@@ -83,9 +83,15 @@ if ! command -v gz >/dev/null 2>&1; then
     sudo apt install -y gz-harmonic
 fi
 
-if ! dpkg -l ros-humble-ros-gzharmonic 2>/dev/null | grep -q "^ii"; then
-    echo "==> installing ros-gz-harmonic bridge"
-    sudo apt install -y ros-humble-ros-gzharmonic
+if ! dpkg -l ros-humble-ros-gz-sim 2>/dev/null | grep -q "^ii"; then
+    echo "==> installing ros-gz bridge for Gazebo Harmonic"
+    # Package name varies. Try the meta-pkg first; fall back to individual subpkgs.
+    sudo apt install -y ros-humble-ros-gz 2>/dev/null \
+      || sudo apt install -y \
+            ros-humble-ros-gz-sim \
+            ros-humble-ros-gz-bridge \
+            ros-humble-ros-gz-image \
+            ros-humble-ros-gz-interfaces
 fi
 
 # ─── 3. Project ROS deps ────────────────────────────────────────────────────
@@ -127,8 +133,12 @@ rosdep install --from-paths src --ignore-src -y \
 
 # ─── 6. Build ───────────────────────────────────────────────────────────────
 echo "==> colcon build (~5-10 min first time)"
+# ROS 2 setup.bash references unbound vars (AMENT_TRACE_SETUP_FILES,
+# COLCON_*) so we drop strict-unbound while sourcing it.
+set +u
 # shellcheck disable=SC1091
 source /opt/ros/humble/setup.bash
+set -u
 colcon build --symlink-install \
     --packages-skip septentrio_gnss_driver lucid_vision_driver \
                     ouster_sensor_msgs ouster_ros
@@ -146,8 +156,10 @@ echo "════════════════════════�
 # ─── 7. Launch if requested ─────────────────────────────────────────────────
 if [ "${1:-}" = "launch" ]; then
     cd "$WORKSPACE"
+    set +u
     # shellcheck disable=SC1091
     source install/setup.bash
+    set -u
     echo "==> launching gem_sim sim_full.launch.py"
     exec ros2 launch gem_sim sim_full.launch.py
 fi
