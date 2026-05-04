@@ -1,3 +1,4 @@
 - [GEM E4 self-driving cart project](project_gem_e4_self_driving.md) — 2018 GEM E4 → "tiny Waymo" at FAU MPCR; greenfield firmware (2020 code lost); safety-driver Phase 1 → unmanned Phase 2.
 - [User role and context](user_role.md) — FAU MPCR researcher leading the cart revival; ML-fluent, less so on automotive controls — explain DBW/safety with more depth.
 - [Planning depth and prior-art expectations](feedback_planning_depth.md) — Plans for vehicle/embedded builds must cite prior art (e.g. UIUC gem_ws) and spec every wire, box, cable run, and cooling detail. No shortcuts.
+- [Jetson role — DBW CAN gateway, NOT a sim host](feedback_jetson_role.md) — Jetson on cart runs gem_dbw_bridge (ROS↔CAN to Teensies). Sim runs OFF-cart only. Don't build Sim/ on the Jetson.
