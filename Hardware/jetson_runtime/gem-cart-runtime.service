@@ -1,0 +1,16 @@
+[Unit]
+Description=GEM cart-runtime ROS stack (gem_dbw_bridge + gem_teleop)
+After=can0-up.service network.target
+Wants=can0-up.service
+
+[Service]
+Type=simple
+User=jetson
+Environment=HOME=/home/jetson
+WorkingDirectory=/home/jetson/golf-cart-code/Software/autonomy_ws
+ExecStart=/bin/bash -lc 'set +u; source /opt/ros/humble/setup.bash; source /home/jetson/golf-cart-code/Software/autonomy_ws/install/setup.bash; ros2 launch gem_teleop teleop.launch.py'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

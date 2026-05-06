@@ -1,0 +1,14 @@
+[Unit]
+Description=Bring up can0 at 500 kbps for DBW bus
+After=network-pre.target
+Before=gem-cart-runtime.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/ip link set can0 type can bitrate 500000
+ExecStart=/sbin/ip link set can0 up
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
