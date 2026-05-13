@@ -266,17 +266,171 @@ README.md            ← repo home page
 
 ---
 
-## 10. The phases — where are we, where are we going
+## 10. The full plan — everything we're going to do, in order
 
-| Phase | Goal | Status | What's done | What's next |
+Six phases, ~12–15 months end to end. Each phase has a concrete demo as its gate to the next.
+
+### Phase 0a — Cart inspection & approvals  (Week 1, ~$25)
+
+**Goal:** understand what's actually on the cart, get the long-pole approvals started.
+
+| Step | What | Status |
+|---|---|---|
+| 1 | Photograph the cart front bay, traction controller, EPAS18 ECU label, dash, throttle pedal connector | 🟡 in progress |
+| 2 | Buy a $25 multimeter, measure pack voltage (48 V or 72 V?) | ⛔ pending |
+| 3 | Measure throttle pedal Hall pair voltages 0–100% (build calibration map) | ⛔ pending |
+| 4 | Locate the GEM J1939 diagnostic port (usually under dash) | ⛔ pending |
+| 5 | Email DCE Motorsport: is autonomous firmware loaded on the EPAS18 ECU? | ⛔ pending |
+| 6 | Email FAU Risk Management about autonomous-vehicle research approval (long-pole — start NOW) | ⛔ pending |
+
+**Demo gate:** All 6 questions answered with hard data + DCE email out + Risk Mgmt thread opened.
+
+---
+
+### Phase 0b — Firmware bench bring-up  (Weeks 1–3, ~$310)
+
+**Goal:** prove the two Teensies talk to each other and to the Jetson, on the bench, with nothing on the cart yet.
+
+| Step | What | Status |
+|---|---|---|
+| 1 | Order Tier 1 parts (~$310: Teensies, CANable, transceivers, DACs, relay, gamepad, wire, connectors) | ⛔ pending |
+| 2 | Solder a small breadboard rig: 2 Teensies + 3 CAN transceivers + bus termination | ⛔ pending |
+| 3 | Flash Motion Teensy firmware; verify heartbeats on CAN with `candump` | ⛔ pending |
+| 4 | Flash Pedals Teensy firmware; verify state machine via dash-button-equivalents | ⛔ pending |
+| 5 | Verify gamepad → Jetson → CAN end-to-end (you already have everything ROS-side on the Jetson) | ✅ Jetson side done |
+| 6 | Verify DAC outputs into a scope: 0→100% throttle sweep produces correct mirrored voltages | ⛔ pending |
+
+**Demo gate:** On the bench, press dash-ARM button → state goes to ARMED. Press ENGAGE → ACTIVE. Move gamepad stick → CAN frame `0x110 STEER_CMD` updates @ 50 Hz. Hit any E-stop simulation → throttle relay drops.
+
+---
+
+### Phase 0c — RC first-light on the cart  (Weeks 4–6, ~$450)
+
+**Goal:** drive the cart in an empty parking lot at 3 mph with a gamepad. Safety driver in seat with foot on the brake.
+
+| Step | What |
+|---|---|
+| 1 | Tier 2 procurement: DC-DCs, LiFePO4 aux battery, fuse block, mushroom E-stops, Kilovac contactor, wire/lugs (~$450) |
+| 2 | Build the under-seat Safety Box: Kilovac + master fuse + E-stop loop wiring |
+| 3 | Build the Steering Aux Box + Pedals Aux Box (the Teensy enclosures) |
+| 4 | Mount the Pelican compute box in the trunk with Jetson |
+| 5 | Run cable channels R/D/S (roof, dash, steering — but no sensors yet, just power + CAN) |
+| 6 | Splice into the GEM throttle harness with the DPDT relay (you can revert at any time) |
+| 7 | Wire CAN_H/CAN_L from Jetson's 40-pin to the Teensies (DBW bus) |
+| 8 | Wire the EPAS bus from Motion Teensy to the EPAS18 ECU |
+| 9 | Bench-test on cart with wheels off the ground first (jack stands) |
+| 10 | Closed-parking-lot first drive at 3 mph max, safety driver, foot near brake |
+
+**Demo gate:** Drive a figure-8 in an empty parking lot, gamepad-controlled, no autonomous decisions, safety driver hands hovering. Hit dash E-stop at speed → cart coasts to a stop safely. **No brake actuator yet** — safety driver brakes with their foot.
+
+---
+
+### Phase 1 — Sensors come online & first mapping run  (Weeks 5–12, ~$5,200)
+
+**Goal:** install all sensors, drive the cart manually around FAU campus, record the data, build a 3D map of the breezeway loop.
+
+| Step | What |
+|---|---|
+| 1 | Tier 3 procurement: Livox Mid-360 LiDAR, ZED 2i front cam, 4× corner cams (USB3 or GMSL), 2× ZED-F9P RTK, VectorNav IMU (~$5,200) |
+| 2 | Fabricate sensor mast (aluminum extrusion, ~$30) on the cart roof |
+| 3 | Wire LiDAR Ethernet + 12 V to trunk via Channel R |
+| 4 | Mount cameras at all 7 positions, route GMSL or USB to trunk |
+| 5 | Mount GPS antennas (40 cm apart for moving-baseline heading) |
+| 6 | Mount the VectorNav IMU near vehicle CG inside the Pelican box |
+| 7 | Calibrate sensor extrinsics with Autoware's calibration tools |
+| 8 | First mapping drive of FAU breezeway loop (East Engineering → Wimberly Library) |
+| 9 | Offline: run LIO-SAM or FAST-LIO2 on the rosbag → produce a 3D point cloud map |
+| 10 | Hand-annotate a lanelet2 vector map on top of the point cloud (Tier IV's free Vector Map Builder tool) |
+
+**Demo gate:** Foxglove playback of a recorded drive showing all 9 sensors firing, with the 3D point cloud + lanelet2 map overlaid. Sub-30 cm map repeatability.
+
+---
+
+### Phase 2 — Autonomous waypoint following  (Weeks 13–24, hardware-side ~$300)
+
+**Goal:** the cart drives the breezeway loop autonomously, at 5 mph, safety driver still in seat hands hovering.
+
+| Step | What |
+|---|---|
+| 1 | Tier 5 procurement: PA-14P linear brake actuator + Bowden cable + BTS7960 H-bridge (~$250) |
+| 2 | Mount brake actuator on firewall, cable to brake pedal arm |
+| 3 | Wire brake driver to Pedals Teensy; bench-tune position PID |
+| 4 | Migrate Jetson autonomy stack from Nav2 (Phase 0–1) to **Autoware Universe** |
+| 5 | Bring up `robot_localization` EKF + Autoware NDT scan-matcher (localization on the HD map) |
+| 6 | Bring up Autoware mission_planner + pure-pursuit controller |
+| 7 | Closed-loop test on T1 breezeway loop: 5 mph, safety driver supervising |
+| 8 | Iterate on tuning until 10 consecutive clean laps |
+
+**Demo gate:** 10 consecutive autonomous laps of the breezeway, lateral error <50 cm, zero unintended disengagements. Software-commanded brake works.
+
+---
+
+### Phase 3 — Perception + pedestrian behavior  (Months 6–9)
+
+**Goal:** add real-world awareness — the cart sees and stops for pedestrians, navigates around static obstacles, follows traffic rules at crosswalks.
+
+| Step | What |
+|---|---|
+| 1 | Fine-tune YOLO v8 on a campus-specific dataset (pedestrians, cyclists, scooters, golf carts) |
+| 2 | Fine-tune SegFormer for drivable surface (pavement, sidewalk, grass, curb, crosswalk) |
+| 3 | Integrate Autoware's `behavior_velocity_planner`: crosswalk module, stop-line module, run-out module |
+| 4 | Expand operating domain from T1 breezeway → T2 academic core (Engineering complex, Library, Student Union) |
+| 5 | Scripted pedestrian-crossing scenarios (50+ encounters); zero near-misses gate |
+| 6 | Static-obstacle navigation (parked golf cart blocks the path → autonomous reroute) |
+
+**Demo gate:** Cart drives the T2 academic core loop autonomously with 50+ scripted pedestrian encounters, zero near-misses, <1 unintended disengagement per km.
+
+---
+
+### Phase 4 — Toward unmanned operation  (Months 9–12+)
+
+**Goal:** chase-observer-only unmanned operation on approved campus segments. The "tiny Waymo" demo.
+
+| Step | What |
+|---|---|
+| 1 | Add the redundant fail-engage parking-brake solenoid (so loss of power = parking brake engages) |
+| 2 | Add the wireless 433 MHz E-stop fob (Telecrane F24-8D), hardwired into the E-stop loop (NOT through software) |
+| 3 | Mapping pass of T3 — full FAU Boca campus (850 acres) |
+| 4 | Independent safety supervisor running on the Orin NX (the Yahboom you already have, demoted from "primary compute" to "safety / logger") |
+| 5 | Buy AGX Orin 64 GB (~$2k) for primary perception compute, install in cart |
+| 6 | Get FAU Risk Management sign-off on the operations envelope (requires the previous Risk Mgmt thread to have matured over 9+ months) |
+| 7 | Chase-observer drives: a person walks/bikes alongside the cart with a wireless E-stop fob |
+| 8 | Build up to >10 hours per phase incident-free before going further |
+
+**Demo gate:** A campus loop, no human in or on the cart, observer follows on foot with a wireless E-stop. The "FAU Early Rider" demo.
+
+---
+
+### Running total by phase
+
+| Phase | Cost | Cumulative | Time | Cumulative time |
 |---|---|---|---|---|
-| **0a** | Inspect cart, understand what's there | 🟡 in progress | First photos taken, front bay identified | Confirm pack voltage, locate J1939 port, photo EPAS ECU label |
-| **0b** | Firmware bench bring-up | ⛔ blocked on parts | Code is written | Order Tier 1 parts (~$310) |
-| **0c** | RC first-light: drive cart via gamepad, no autonomy | ⛔ ~Week 4 | All ROS code working on Jetson | Wire Teensies to cart, gamepad in hand |
-| **1** | Sensors mounted, mapping run | ⛔ ~Week 5–8 | Plans written | Buy sensors after RC works |
-| **2** | Autonomous waypoint following on closed lot | ⛔ ~Week 9–16 | Sim foundation exists | Build HD map of campus |
-| **3** | Pedestrian-aware autonomy on campus paths | ⛔ ~Mo 6–9 | — | Autoware perception integration |
-| **4** | Unmanned operation with chase observer | ⛔ ~Mo 9–12 | — | Brake actuator + redundant safety |
+| 0a inspection | $25 | $25 | Week 1 | 1 |
+| 0b firmware bench | $310 | $335 | Weeks 1–3 | 3 |
+| 0c RC first-light | $450 | $785 | Weeks 4–6 | 6 |
+| 1 sensors + mapping | $5,200 | $5,985 | Weeks 5–12 | 12 |
+| 2 autonomous waypoint | $300 | $6,285 | Weeks 13–24 | 24 |
+| 3 perception + behavior | $250 (enclosures/cooling) | $6,535 | Months 6–9 | 36 weeks |
+| 4 unmanned (AGX Orin) | $2,200 | $8,735 | Months 9–12+ | 48 weeks |
+
+Lab inventory check can cut $2k+ off this — see `Hardware/system_design.md` PART F.
+
+---
+
+### The cross-cutting threads
+
+Things that happen *throughout* the project, not at any single phase:
+
+- **FAU approvals** — Risk Management, Campus Police, Insurance, Office of Research Integrity. Email thread should start in Phase 0a; the approvals mature over 9+ months for unmanned. *This is the actual long-pole, not any hardware.*
+- **Sim work** — the Cartagena workspace runs on a Linux dev box (not the Jetson). Used in Phase 0–1 to dry-run code, in Phase 2+ to validate behaviors before real-cart testing.
+- **Documentation + version control** — every change auto-pushes to GitHub every 10 minutes. Anyone joining the project clones the repo and `bin/setup_new_machine.sh` gives them ~95% of context.
+- **Safety case** — grows over time. Phase 0 = mechanical E-stops + safety driver. Phase 2 = software disengagement paths. Phase 4 = wireless E-stop + parking-brake solenoid + redundant compute.
+
+---
+
+### How you'll know we're on track
+
+After each phase demo gate, ask: "could a stranger reproduce this on a fresh Linux box?" If yes → next phase. If no → tighten docs/scripts first.
 
 ---
 
