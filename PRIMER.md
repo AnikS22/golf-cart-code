@@ -434,7 +434,124 @@ After each phase demo gate, ask: "could a stranger reproduce this on a fresh Lin
 
 ---
 
-## 11. Plain-English glossary
+## 11. Skills, tools, and pitfalls — how to actually do this
+
+Theory in the previous sections won't help if you don't have the workshop fundamentals. Here's the practical layer.
+
+### Physical tools you'll need to acquire
+
+| Tool | Why | ~$ | When |
+|---|---|---|---|
+| **Multimeter** (Klein MM325 or Fluke 101) | Measure voltage, continuity, resistance — 80% of investigation work | $25–80 | NOW |
+| **Wire strippers + cutters** | Prepare wire ends cleanly | $15 | Phase 0c |
+| **Deutsch DT crimper** | Crimps DT04 connector pins; **specialized** — generic crimpers won't work | $35 | Phase 0c (comes in the kit) |
+| **Soldering iron** (Pinecil V2 is great) | Solder Teensy headers, DAC breakouts, etc. | $30 | Phase 0b |
+| **Solder + flux** (lead-free 0.6mm + rosin flux pen) | — | $15 | Phase 0b |
+| **Heat gun** + heat-shrink tubing | Insulate splices properly | $25 | Phase 0c |
+| **PCB vise** or "helping hands" | Hold parts while you solder | $15 | Phase 0b |
+| **Safety glasses + nitrile gloves** | Protect eyes from solder splatter; gloves when probing | $10 | NOW |
+| **Insulated work gloves** (1000 V rated) | For when you're near the orange HV wires | $30 | Phase 0c |
+| **Headlamp** | Working under the dash | $20 | Phase 0a |
+| **Label maker** (Brother PT-D210) or just masking tape + Sharpie | Label every wire — you WILL forget | $30 | Always |
+| **Logic analyzer** (Saleae Logic 8 clone) | Optional but huge for debugging CAN/SPI/I²C | $15 (clone) | When stuck |
+| **Bench power supply** (cheap CSI3010, 0–30 V / 0–10 A) | Test electronics off-cart safely | $60 | Phase 0b |
+
+Total: ~$300 for the workshop. Buy as you need.
+
+### Software tools to install on your machine
+
+- **Foxglove Studio** (Mac native) — already done, for URDF preview + ROS topic viewing
+- **VS Code** (or your editor)
+- **GitHub Desktop** (if you prefer GUI over command-line git)
+- **Fusion 360 Personal** (free for academic) — for any CAD work
+- **Slack / Discord** — for whatever team comms FAU uses
+
+### Skills to develop (each is ~1–2 hours of YouTube + practice)
+
+In approximate order of when you'll need them:
+
+1. **Multimeter usage — DC voltage, continuity** (Phase 0a)
+   → YouTube: "How to use a multimeter for beginners" (any 15-min video)
+2. **Soldering through-hole components** (Phase 0b)
+   → YouTube: "How to solder for absolute beginners" by EEVblog
+3. **Reading basic schematic symbols** (ongoing)
+   → SparkFun tutorial: "How to read schematics"
+4. **Using `candump` and `cangen` on Linux** (Phase 0b)
+   → Run `man candump` after `apt install can-utils`; pretty self-explanatory
+5. **Crimping Deutsch DT connectors** (Phase 0c)
+   → YouTube: "How to crimp Deutsch DT connectors"
+6. **Reading ROS 2 launch files** (already starting)
+   → Skim `Software/autonomy_ws/src/gem_teleop/launch/teleop.launch.py`; it's Python
+7. **Basic Linux terminal** (ongoing)
+   → If `ssh`, `scp`, `cd`, `ls`, `cat`, `grep` aren't familiar yet, install Warp terminal and practice for an hour
+
+### Methodology — how to test things without setting them on fire
+
+The golden rule: **build it small, test it isolated, add one thing at a time.**
+
+1. **Breadboard first, PCB later.** Plug components into a solderless breadboard before committing to a soldered assembly. If something's wrong, you can rearrange in 30 seconds.
+2. **Power from a benchtop supply, not the cart.** Start at 1 A current limit. If something draws more than expected, the bench supply will current-limit. The cart's traction battery will not — it'll deliver hundreds of amps into a short.
+3. **Test each component alone before integrating.** Power up the Teensy alone. Then add the transceiver. Then add the DAC. Then the relay. Each step, verify functionality before adding the next.
+4. **Use a scope (or just an LED) to verify outputs** before wiring to anything irreplaceable. DAC outputs especially — check on the scope that you actually get 0.8 V at rest before plugging into the throttle harness.
+5. **Always disconnect actuators before re-flashing or testing new code.** A buggy firmware that floors throttle will be a bad surprise.
+6. **Test on jack stands before driving.** When the cart's drive wheels are first commanded by software, the wheels should be off the ground. Listen for unusual noise. Listen for motor groan that means the steering is fighting itself.
+
+### Debugging when something doesn't work — the systematic approach
+
+Work outward from power, in. **Always.**
+
+1. **Power.** Is the supply on? Is voltage correct at every rail? Voltage at the Teensy 5 V pin? Voltage at the DAC Vcc?
+2. **Ground.** Continuity from every component's GND back to a single point? No multiple ground paths?
+3. **Signal at source.** Is the Teensy actually emitting what you think? Check with `Serial.println()` or with an LED you toggle.
+4. **Signal at destination.** Is it arriving cleanly? Probe with multimeter or scope at the receiving end.
+5. **Protocol.** `candump can0` to see actual CAN traffic. `ros2 topic echo /...` to see ROS messages. Don't trust your code — verify the wire.
+6. **Code.** Re-read your own code (your eyes glaze over after writing it; force yourself to read line by line). Add print statements.
+7. **Documentation.** Re-read the datasheet of the chip you're talking to. Half the time the answer is in the datasheet you skimmed.
+8. **Ask.** If 2 hours of solo debugging hasn't moved the needle, ask someone with fresh eyes. Bring the symptom + what you've tried + a hypothesis. Don't ask "why doesn't it work" — that's untriagable. Ask "I see X, I expected Y, my hypothesis is Z, how do I test that?"
+
+### When to ask for help (specifically)
+
+- **Anything involving the orange HV wires** → ask first, always. Not a place to learn from mistakes.
+- **If the magic smoke comes out** → unplug everything immediately, ask before re-energizing.
+- **If a component gets hot enough to burn your finger** → unplug, ask.
+- **If the cart behaves unexpectedly** (twitches, surges, won't stop) → STOP, hit E-stop, ask before trying again.
+- **If you've spent more than 2 hours debugging the same problem** → ask. Two fresh eyes save hours.
+
+### Realistic expectations
+
+- **A "1-hour task" usually takes 3–5 hours the first time.** Plan accordingly. Add 50% buffer.
+- **Embedded debugging can eat full days.** A single mistake (reversed polarity, bad solder joint, wrong CAN ID byte) can take an afternoon to find.
+- **You will burn out at least one Teensy.** Build it into the budget. Buy 3 instead of 2.
+- **The first cart-side install will fail in some unexpected way.** Plan a half-day for "first power-on" not 30 minutes.
+- **FAU approvals take months, not days.** Start the Risk Management thread now even though you won't drive on campus for 6 months.
+
+### Common pitfalls (things that bite first-timers, every time)
+
+1. **Wiring polarity reversed** — connect Teensy 5 V to GND and you fry it. Always check before powering on.
+2. **CAN bus missing termination** — without 120 Ω at each end, frames look fine on a scope but get dropped at speed. Symptom: bus works for short bursts then errors flood.
+3. **Ground loops** — multiple ground paths cause weird noise that's nearly impossible to debug. Single-point star ground at the aux battery negative, period.
+4. **DPDT relay wired wrong** — easy to put pedal and DAC on the wrong sides. Test the relay logic with a multimeter in continuity mode before energizing.
+5. **Software FAULT is sticky** — by design. Don't add ways to clear it from software. If you keep ending up in FAULT, fix the cause, not the symptom.
+6. **EPAS18 in local mode silently** — if the autonomous firmware isn't loaded, msg `0x296` does nothing. The ECU won't error, it just won't steer. Confirm the firmware variant via DCE.
+7. **Pedal Hall pair voltage flipped** — V1 and V2 mirror each other. Swap them and the traction controller faults on plausibility check. Document the orientation before splicing.
+8. **`ros2: command not found`** — you forgot `source /opt/ros/humble/setup.bash` in this terminal. Add it to your `.bashrc` once you're tired of typing it.
+9. **Building the wrong workspace** — `Sim/...` and `Software/autonomy_ws/` are different colcon workspaces. Same `colcon build` command, different `cd` first.
+10. **Stale builds after edits** — symlink-install means launch files auto-pick edits, but C++ packages need a real rebuild. When in doubt, `rm -rf build/ install/ log/` and full rebuild.
+11. **Auto-commit pushing half-edited files** — if you're in the middle of breaking something, the 10-minute cron will push it. Either commit/revert quickly, or temporarily disable: `launchctl unload ~/Library/LaunchAgents/com.fau.golfcart.autocommit.plist`.
+12. **Sourcing forgotten in scripts** — every shell script that calls `ros2` must source ROS first. The bridge node's systemd unit does this. Your one-off scripts often don't, and silently exit.
+
+### Document discipline — so this doesn't go dormant again
+
+The 2020 team left almost nothing behind. The recovered Arduino code was 13 bytes of "404 NOT FOUND". Don't repeat that:
+
+- **Every measurement you make on the cart goes into a file** (date, what you measured, value, what it means).
+- **Every wiring change** gets photographed before and after.
+- **Every "I tried X but Y happened" goes into the relevant doc** — your future self thanks you.
+- **Auto-commit will catch most of this.** Don't fight it.
+
+---
+
+## 12. Plain-English glossary
 
 | Term | What it really means |
 |---|---|
@@ -471,7 +588,7 @@ After each phase demo gate, ask: "could a stranger reproduce this on a fresh Lin
 
 ---
 
-## 12. What to do next (concretely)
+## 13. What to do next (concretely)
 
 You don't need to know everything from this primer. You need to know:
 - The 30-second version (Section 1)
