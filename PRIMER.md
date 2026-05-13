@@ -551,7 +551,90 @@ The 2020 team left almost nothing behind. The recovered Arduino code was 13 byte
 
 ---
 
-## 12. Plain-English glossary
+## 12. The underlying lessons — what this project is really teaching
+
+These are the principles behind the architectural decisions. Internalize these and you'll make better calls than you'd get from following any checklist.
+
+### Engineering principles
+
+**1. Software is never in the kill path.**
+The hardware E-stop loop physically yanks power before any microcontroller can react. Why? Software has bugs; relays don't. Every safety-critical system you'll ever build needs a path that survives total software failure. The Kilovac LEV200 contactor + the NC series-wired E-stop loop is that path here.
+
+**2. Single source of truth, propagated everywhere.**
+The CAN protocol is defined in *one* header file (`dbw_can_protocol.h`) and compiled into both Teensy firmwares AND the Python Jetson bridge. Vehicle parameters live in *one* xacro file (`cart_parameters.xacro`) that both the sim URDF and the real-cart URDF include. Anywhere you find the same value typed in two places is a bug waiting to happen.
+
+**3. Fault domain separation.**
+Three CAN buses, not one. Two Teensies, not one. Two Jetsons, not one. If the steering bus glitches, throttle still works. If perception crashes, the safety supervisor still stops the cart. Building monoliths in safety-critical systems is asking for them to fail spectacularly.
+
+**4. Build small, integrate one piece at a time.**
+Breadboard before PCB. Bench supply before traction battery. One Teensy on the bus before two. Add one component, prove it works, add the next. This is slower than "build it all and turn it on," but the cost of debugging an integrated system that has six bugs is more than 6× the cost of debugging six isolated bugs.
+
+**5. Defense in depth on safety.**
+The cart stops via three independent mechanisms: hardware E-stop loop, software state machine, mechanical override. We don't rely on any one of them being bug-free. The autonomous-firmware variant of the EPAS18 yields to driver torque on the wheel. The throttle DPDT relay defaults to "pedal direct" on power loss. The brake actuator uses a cable that you can always press deeper than. Belt and suspenders and parachute.
+
+**6. Use existing parts when possible.**
+We kept the 2020 team's EPAS18 Ultra steering instead of ripping it out for an ODrive + custom motor. We adopted the Cartagena sim foundation instead of starting over. We took the recovered J1939 PGN dictionary as our starting decode rather than reverse-engineering from scratch. NIH ("Not Invented Here") syndrome is expensive — when something works, use it.
+
+**7. Cite prior art before deciding architecture.**
+UIUC's gem_ws taught us that PACMod is one DBW option (we chose not to use it). GEM-Illinois's sim package gave us our Gazebo foundation. Autoware Universe is our Phase 2 target. The right question before designing is always "has someone built this before, and what did they learn?"
+
+**8. Procurement detail matters in plans.**
+"Add a CAN transceiver" is not a plan. "Mouser part `653-G8HE-1A7T-DC12`, qty 2, $14" is a plan. Vagueness in a procurement plan means you discover the wrong part after a week of build time. Be specific to the SKU level when the plan crosses into hardware.
+
+### Project & process principles
+
+**9. Demo gates, not date gates.**
+Phases advance when the demo passes, not when the calendar says so. A "Week 9" milestone means nothing if Phase 0c hasn't actually driven the cart. Forcing the schedule produces theater, not progress.
+
+**10. Approvals are the long pole.**
+FAU Risk Management, Campus Police, insurance, IRB. Hardware can be ordered and assembled in weeks; institutional approvals take 6+ months. Start the approval thread on day one, even when you don't need it for half a year. This is the actual constraint, not the technical work.
+
+**11. Document discipline saves projects.**
+The 2020 team produced beautiful CAD, working Arduino code, and a partial PGN dictionary — and then the project died and almost nothing was version-controlled. We recovered some artifacts from OneDrive five years later, by luck. Don't repeat that. Every measurement on the cart goes into a file, every wiring change gets photographed, every "I tried X but Y happened" goes into the relevant doc. Auto-commit catches most of it for free.
+
+**12. Ask for fresh eyes after 2 hours.**
+Two hours of solo debugging is the threshold. Beyond it, productivity drops fast and a second pair of eyes saves more time than the asker thinks. Bring the symptom, what you've tried, and a hypothesis — don't ask "why doesn't it work."
+
+**13. Sims are for behaviors, real cart is for ground truth.**
+The sim is great for control-loop dev, behavior testing, scenario rehearsal, autonomy regression. The sim is bad for sensor noise characterization, mechanical response tuning, GPS-degraded behavior. Use each tool for what it does well — don't expect sim agreement to mean the real cart will work.
+
+**14. Auto-commit is non-negotiable.**
+The repo is the project. Local-only work is work that doesn't exist. The Mac launchd job that pushes every 10 minutes isn't a convenience — it's how we don't lose this project the way 2020 did.
+
+### Specific design lessons from THIS project
+
+**15. The Jetson is a CAN gateway and autonomy compute, NOT a sim host.**
+Burned ~3 hours in this session trying to run Gazebo on the Jetson. Wrong tool. Sim runs on a dev box (Linux, off-cart). The Jetson on the cart talks to Teensies and runs autonomy. Architectural mismatch == wasted time.
+
+**16. macOS isn't a ROS 2 + Gazebo platform.**
+Apple Silicon Rosetta breaks Gazebo's shared-memory tracker. The osrf/ros multi-arch manifests don't include arm64. Native macOS ROS 2 is officially unsupported. Use a Linux box for cart-runtime work; use the Mac for editing and Foxglove preview only.
+
+**17. Throttle DAC injection beats J1939 injection.**
+The 2020 team considered injecting throttle commands directly onto the GEM's J1939 bus. They (correctly) rejected it as too risky — writing to the wrong bus address can brick the traction controller. We adopted their decision: read-only on J1939, DAC injection at the pedal harness.
+
+**18. The orange wires are not optional reading.**
+72 V DC will kill you. Always confirm the master cutoff is off, wait 5 minutes for Sevcon caps to discharge, work on the 12 V side after the DC-DC step-down. This isn't ceremony — it's the actual safety case.
+
+**19. Vendor firmware matters as much as your firmware.**
+The EPAS18 ECU is useless without DCE Motorsport's autonomous firmware variant. The standard firmware does power-steering assist only; msg `0x296` does nothing. **Confirm vendor firmware variants before you commit to the hardware.** This nearly bit the 2020 team and would bite us if we didn't email DCE early.
+
+**20. The plan is going to change.**
+You're reading version N of the master plan. By Phase 2 it'll be version N+5. That's healthy — plans should update with learnings. What's not healthy is plans that pretend to be done and ignore new information. Treat the plan as a living document; commit updates with reasons; use git history to trace the why.
+
+### Meta-lessons
+
+**21. Ambitious projects are doable; you just need the right pace.**
+"Tiny Waymo on FAU campus" sounds insane for a small lab. It's actually achievable — IF you accept it's a 12-month project, not a 12-week one, and you do one phase at a time without skipping. The 2020 team's mistake wasn't ambition; it was trying to integrate everything before any one piece worked.
+
+**22. Knowledge gaps are not blockers.**
+You started this project without mech/electrical background. That's normal. Every researcher on every AV project had to learn the cross-discipline parts at some point. The blocker isn't what you don't know — it's not asking when you don't know.
+
+**23. Future-you needs more notes than you think.**
+The 2020 team's piduino_v3.ino was a 13-byte "404 NOT FOUND" stub. Five years later, no one knows what it was supposed to be. Write it down NOW. Future-you (or future-someone) will thank present-you.
+
+---
+
+## 13. Plain-English glossary
 
 | Term | What it really means |
 |---|---|
@@ -588,7 +671,7 @@ The 2020 team left almost nothing behind. The recovered Arduino code was 13 byte
 
 ---
 
-## 13. What to do next (concretely)
+## 14. What to do next (concretely)
 
 You don't need to know everything from this primer. You need to know:
 - The 30-second version (Section 1)
