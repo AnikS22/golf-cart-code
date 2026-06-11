@@ -59,12 +59,12 @@ cangen -I 100 -L 8 -D AABBCCDDEEFF0000 -g 50 can0
 - **Heartbeat 0x150 at 50 Hz**. Jetson HB lost (no 0x100 in 100 ms) → fault, release EPAS.
 
 ### Pedals Teensy
-- **Two CAN buses**: CAN1 = DBW, CAN2 = GEM J1939 (read-only via ISO1042 isolator).
+- **Three CAN buses**: CAN1 = DBW, CAN2 = GEM J1939 (read-only via ISO1042 isolator), CAN3 = Kartech J1939 brake bus.
 - **Throttle DAC**: 2× MCP4725 over I²C, mirrored to match GEM Hall pair. DPDT failsafe relay (Omron G8HE) routes pedal-or-DAC to traction controller.
 - **J1939 sniffer**: decode PGN 65265 (vehicle speed, mph), 61445 (gear: F/N/R/Charging), 61444 (voltage). Republish on DBW as 0x160 VEHICLE_STATE @ 50 Hz.
 - **Master state machine**: DISENGAGED → ARMED → ACTIVE → FAULT. ARM requires no faults + brake not pressed + wheel not touched. ENGAGE requires ARMED + Jetson HB OK.
 - **Safety inputs**: dash E-stop GPIO, brake-light optoisolator, wheel-touch via MPR121 cap-sense.
-- **Brake actuator** (Phase 2 only): PWM to BTS7960 H-bridge, PID on integrated pot feedback.
+- **Brake actuator**: Kartech 1A001HAJ via J1939 (PGN 65280) on CAN3. Proportional position control via `kartech::send_brake_permil()` at 50 Hz. Kartech runs its own closed-loop servo internally — no PID in our firmware.
 - **Heartbeat 0x151 at 50 Hz**, ESTOP_STATE 0x140 at 50 Hz.
 
 ## Watchdog and safety gates (both Teensies)

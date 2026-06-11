@@ -76,12 +76,13 @@ Master plan: `~/.claude/plans/i-need-your-help-hashed-dongarra.md`. This doc is 
 | Failsafe relay | **Omron G8HE-1A7T** DPDT auto, 12 V coil | Coil energized only in ACTIVE state |
 | Pedal harness tap | T-junction into existing GEM Hall pair | Existing GEM connector (probably Molex MX150 — verify) |
 
-### C.4 Brake (Phase 2 — buy after Phase 1 success)
+### C.4 Brake (Phase 2 — actuator already procured from 2020 team)
 | Item | Pick | Interface |
 |---|---|---|
-| Linear actuator | **Progressive Automations PA-14P-4-150** (4" stroke, 150 lb, integrated pot) | 12 V power, analog feedback to Pedals Teensy ADC |
+| Linear actuator | **Kartech 1A001HAJ** (J1939-controlled servo, integrated closed-loop) | 12 V power; CAN bus to Pedals Teensy CAN3 |
 | Cable | Generic 36" Bowden cable kit | Pulls brake pedal arm; driver presses through |
-| Driver | **BTS7960** H-bridge | PWM from Pedals Teensy |
+| Driver | **Built into the actuator** — no external H-bridge needed | Kartech accepts position commands via J1939 PGN 65280 |
+| CAN transceiver | SN65HVD230 (3.3 V) on Teensy CAN3 (pins 30/31) | 250 kbps, 29-bit J1939 IDs |
 | Phase 4 fail-engage | 12 V solenoid-actuated parking brake | Hardwired to E-stop loop (power loss = brake on) |
 
 ---
@@ -172,7 +173,7 @@ Extrinsic calibration (LiDAR↔cameras, IMU↔base_link): perform once with the 
 5. **Tier-3 buy:** Livox Mid-360 + ZED 2i + 4× e-CAM130 + ZED-F9P ×2 + ANN-MB-00 ×2 + VectorNav VN-100. ~$5,200. **Lets sensor integration begin.**
 6. **Tier-4 buy:** ZED Mini + Leopard GMSL + Hawk dev kit. ~$1,150. **Last sensors.**
 7. **Tier-5 buy:** Vicor DC-DC + LiFePO4 100 Ah + Pelican 1450 + Peltier AC + Aux Boxes + cabling. ~$1,800. **Physical packaging build.**
-8. **Tier-6 (Phase 2):** PA-14P brake actuator + Bowden cable + BTS7960 + parking-brake solenoid. ~$300.
+8. **Tier-6 (Phase 2):** Kartech 1A001HAJ already in inventory; only need Bowden cable + SN65HVD230 transceiver + parking-brake solenoid (Phase 4). ~$110.
 
 Total: **~$12,200** (before contingency). Lab inventory hits should drop this 15–35%.
 

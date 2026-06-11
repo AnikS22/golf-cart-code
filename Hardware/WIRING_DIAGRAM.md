@@ -30,7 +30,7 @@ flowchart LR
 
   EPAS[EPAS18 Ultra ECU<br/>+ EPAS01 column motor]:::actuator
   Throttle[2× MCP4725 DAC + MCP6002 op-amp + Omron G8HE DPDT relay<br/>→ GEM Hall pair → traction controller]:::actuator
-  Brake[Phase 2: PA-14P linear actuator + Bowden cable]:::actuator
+  Brake[Phase 2: Kartech 1A001HAJ J1939 actuator + Bowden cable]:::actuator
 
   GEMCAN[GEM internal CAN bus<br/>J1939 @ 250 kbps READ-ONLY]:::vehicle
 
@@ -149,7 +149,7 @@ flowchart LR
 | F5 |  3 A | 12 V → sensors | CANable, IMU, F9P (~6 W) |
 | F6 | 10 A | 12 V → Steering Aux Box | Motion Teensy + ODrive logic + relay |
 | F7 |  5 A | 12 V → Pedals Aux Box | Pedals Teensy + DACs + DPDT relay coil |
-| F8 | 15 A | 12 V → brake actuator (Phase 2) | PA-14P linear actuator |
+| F8 | 15 A | 12 V → brake actuator (Phase 2) | Kartech 1A001HAJ J1939 actuator |
 | F9 | 10 A | 12 V → cabin AC | Peltier cabinet AC |
 | F10 |  5 A | 12 V → dash | Status LEDs + dash buttons |
 

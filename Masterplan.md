@@ -74,7 +74,7 @@
  ├────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
  │ Vehicle telemetry      │ Read-only J1939 sniffer on the GEM internal CAN. Pull vehicle speed (PGN 65265), gear (PGN 61445), voltage (PGN 61444). Replaces aftermarket wheel encoders entirely. NEVER transmit on the vehicle bus.                                                                                     │
  ├────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
- │ Brake                  │ None Phase 1 (safety driver). Phase 2: PA-14P-4-150 linear actuator + Bowden cable (driver presses through). Phase 4: redundant fail-engage parking-brake solenoid for unmanned.                                                                                                             │
+ │ Brake                  │ None Phase 1 (safety driver). Phase 2: Kartech 1A001HAJ J1939 actuator (PGN 65280) + Bowden cable (driver presses through). Phase 4: redundant fail-engage parking-brake solenoid for unmanned.                                                                                                │
  ├────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
  │ DBW MCUs               │ 2× Teensy 4.1. Motion Teensy = EPAS18 CAN bridge + safety state echo. Pedals Teensy = throttle DAC + brake actuator + state machine + E-stop monitor + J1939 sniffer (3rd CAN controller — Teensy 4.1 has 3).                                                                                │
  ├────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
@@ -289,11 +289,11 @@
  ┌─────────────────────┬───────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────┐
  │        Item         │                                     Pick                                      │                                    Notes                                     │
  ├─────────────────────┼───────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────┤
- │ Linear actuator     │ Progressive Automations PA-14P-4-150 (4" stroke, 150 lb, integrated pot, 12V) │ Concentric LACT4P / Firgelli L16-R 150 acceptable                            │
+ │ Linear actuator     │ Kartech 1A001HAJ (J1939 servo, 12 V, internal closed-loop). Already in lab inventory from 2020. │ Captured command frames in Software/firmware/kartech_brake_reference/        │
  ├─────────────────────┼───────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────┤
  │ Mounting            │ Firewall bracket → Bowden cable to brake pedal arm clamp                      │ Driver always presses deeper = mechanical override                           │
  ├─────────────────────┼───────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────┤
- │ Driver              │ H-bridge (BTS7960 or equivalent) on Pedals Teensy                             │ Closed-loop position via integrated pot                                      │
+ │ Driver              │ Built into the Kartech actuator (no external H-bridge required)               │ Pedals Teensy CAN3 → SN65HVD230 → Kartech CAN connector. PGN 65280, 250 kbps │
  ├─────────────────────┼───────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────┤
  │ Phase 4 fail-engage │ Solenoid-actuated parking brake tied directly to E-stop loop                  │ Power loss → brake engages mechanically (inverse of service brake fail-safe) │
  └─────────────────────┴───────────────────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────┘
@@ -479,7 +479,7 @@
  ├─────┼────────────────────────────────────────────┼──────────────────────────────────────┼─────────────────────────────────────────────┼──────────────────────────────────────────┤
  │ S08 │ J1939 vehicle CAN tap                      │ Belden 9841                          │ 1.0 m to GEM diag port (location TBD)       │ Isolated CAN transceiver                 │
  ├─────┼────────────────────────────────────────────┼──────────────────────────────────────┼─────────────────────────────────────────────┼──────────────────────────────────────────┤
- │ S09 │ Brake actuator power+pot (Phase 2)         │ 4-cond shielded                      │ 1.5 m to actuator                           │ DT04-4P                                  │
+ │ S09 │ Brake actuator power + CAN (Phase 2)       │ 2-cond power + Belden 9841 CAN pair  │ 1.5 m to Kartech actuator                   │ DT04-4P (power) + CAN connector          │
  └─────┴────────────────────────────────────────────┴──────────────────────────────────────┴─────────────────────────────────────────────┴──────────────────────────────────────────┘
 
  Channel ESP — E-stop loop (under-seat → dash → passenger → wireless RX)
@@ -548,7 +548,7 @@
  ├──────────────────────────────────────────────────────────────────────────────┼──────────┤
  │ Throttle bypass parts (DACs + op-amps + relay + harness)                     │ $80      │
  ├──────────────────────────────────────────────────────────────────────────────┼──────────┤
- │ Brake (Phase 2; PA-14P + cable + driver)                                     │ $250     │
+ │ Brake (Phase 2; Bowden cable + SN65HVD230 — Kartech already on hand)         │ $30      │
  ├──────────────────────────────────────────────────────────────────────────────┼──────────┤
  │ Safety (2× E-stops + Kilovac + MPR121 + wireless E-stop kit)                 │ $400     │
  ├──────────────────────────────────────────────────────────────────────────────┼──────────┤
@@ -624,7 +624,7 @@
 
  Main loop responsibilities:
  - 200 Hz: write throttle DAC pair (when state=ACTIVE & enable cmd=true & E-stop OK & brake not pressed).
- - 100 Hz: read brake actuator pot, compute brake position; if Phase 2 brake commanded → drive H-bridge.
+ - 50 Hz: brake — kartech::send_brake_permil() on CAN3 (J1939 PGN 65280, 250 kbps). Continuous proportional position in band [POS_RELEASE_STOCK=3520 .. POS_FULL_BRAKE=3009].
  - 50 Hz: J1939 sniff, decode PGN 65265 (speed), 61445 (gear), 61444 (voltage) → publish on DBW bus as 0x160 VEHICLE_STATE.
  - 50 Hz: state machine evaluation — gates throttle/brake enable.
  - E-stop / brake pedal / wheel-touch monitoring on GPIO interrupts.

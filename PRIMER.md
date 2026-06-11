@@ -352,7 +352,7 @@ Six phases, ~12–15 months end to end. Each phase has a concrete demo as its ga
 
 | Step | What |
 |---|---|
-| 1 | Tier 5 procurement: PA-14P linear brake actuator + Bowden cable + BTS7960 H-bridge (~$250) |
+| 1 | Tier 5 procurement: Bowden cable + SN65HVD230 CAN transceiver (~$30; Kartech 1A001HAJ actuator is already in lab inventory) |
 | 2 | Mount brake actuator on firewall, cable to brake pedal arm |
 | 3 | Wire brake driver to Pedals Teensy; bench-tune position PID |
 | 4 | Migrate Jetson autonomy stack from Nav2 (Phase 0–1) to **Autoware Universe** |

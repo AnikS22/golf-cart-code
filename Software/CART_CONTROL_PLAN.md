@@ -115,8 +115,8 @@ External connections:
   │   ├─ pin 6  (ESTOP_SENSE) ←── E-stop loop sense (HIGH=closed)         │
   │   ├─ pin 7  (BRAKE_PEDAL) ←── PC817 optoiso ←── GEM brake light wire  │
   │   ├─ pin 8  (WHEEL_TOUCH) ←── MPR121 IRQ (if cap-touch installed)     │
-  │   ├─ pin 9  (BRAKE_PWM_R) ──→ unused Phase 1 (Phase 2: BTS7960 RPWM)  │
-  │   ├─ pin 10 (BRAKE_PWM_L) ──→ unused Phase 1                          │
+  │   ├─ pin 30 (CRX3) / 31 (CTX3) → Kartech J1939 (250 kbps via SN65HVD230) │
+  │   ├─ pins 9, 10, A0 ──→ free (formerly BTS7960; Kartech replaces it)  │
   │   ├─ pin 13 (LED status)                                              │
   │   └─ +5V / GND from Pololu D24V50F5                                   │
   │                                                                       │
@@ -305,7 +305,7 @@ Order this Wednesday after your cart visit.
 | 1c (current plan) | Manual gamepad → ROS → Teensies → cart. **Steer + throttle. No brake. ≤5 mph.** |
 | 1d | Replace gamepad with a tablet UI (Foxglove/RViz). Same `/dbw/cmd` interface. |
 | 1e | Add cameras + LiDAR + GNSS. Teleop with vision feedback. |
-| 2 | **Brake actuator** (PA-14P). Closed-loop autonomous stops. ~Week 9. |
+| 2 | **Brake actuator** (Kartech 1A001HAJ on J1939). Closed-loop autonomous stops; servo loop runs inside the actuator. ~Week 9. |
 | 2b | Autoware Universe for path following. Same `/dbw/cmd` interface — no re-wire. |
 | 3 | Perception / pedestrian behaviors. |
 | 4 | Unmanned readiness (parking-brake solenoid, wireless E-stop). |

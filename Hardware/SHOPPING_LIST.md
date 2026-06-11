@@ -119,13 +119,14 @@ Buy when you start physically mounting things in the cart.
 
 Don't buy until first-light RC drive milestone passes. Safety driver brakes with foot until then.
 
+**Brake actuator itself is already in lab inventory** — Kartech 1A001HAJ (J1939, PGN 65280). Driver is built into the actuator, so no external H-bridge needed. Only the cable + transceiver + Phase 4 solenoid still to buy.
+
 | # | Item | Qty | Vendor | Search / link | ~$ |
 |---|---|---|---|---|---|
-| 47 | Progressive Automations PA-14P-4-150 linear actuator | 1 | Progressive Auto direct | progressiveautomations.com | 180 |
-| 48 | Bowden cable kit (36" inner cable + housing + ends) | 1 | Amazon | "Bowden cable kit 36 inch" | 25 |
-| 49 | BTS7960 (IBT-2) 43 A H-bridge motor driver | 1 | Amazon | "BTS7960 IBT-2 motor driver" | 12 |
-| 50 | 12 V solenoid-actuated parking-brake mechanism (Phase 4) | 1 | TBD spec later | — | 80 |
-| | | | | **Tier 5 subtotal** | **~$300** |
+| 47 | Bowden cable kit (36" inner cable + housing + ends) | 1 | Amazon | "Bowden cable kit 36 inch" | 25 |
+| 48 | SN65HVD230 CAN transceiver breakout (for Kartech CAN3) | 1 | Amazon / DigiKey | "SN65HVD230 CAN module" | 4 |
+| 49 | 12 V solenoid-actuated parking-brake mechanism (Phase 4) | 1 | TBD spec later | — | 80 |
+| | | | | **Tier 5 subtotal** | **~$110** |
 
 ---
 
