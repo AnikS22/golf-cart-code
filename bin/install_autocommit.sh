@@ -30,7 +30,8 @@ if launchctl list | grep -q com.fau.golfcart.autocommit; then
   launchctl unload "$PLIST_DST" 2>/dev/null || true
 fi
 
-cp "$PLIST_SRC" "$PLIST_DST"
+# Substitute this machine's repo path (source plist uses __REPO_DIR__ placeholder).
+sed "s|__REPO_DIR__|$REPO_DIR|g" "$PLIST_SRC" >"$PLIST_DST"
 launchctl load "$PLIST_DST"
 
 echo "Installed launchd job com.fau.golfcart.autocommit"

@@ -1,0 +1,20 @@
+# Python env (rebuild via provisioning) — do NOT commit
+.venv/
+
+# Openpilot checkout (2 GB, pulled via `git clone` + LFS; reproducible)
+openpilot_upstream/
+
+# Model weights (61 MB–1.8 GB; pulled from comma LFS, not vendored)
+models/*.onnx
+
+# MetaDrive downloads its asset pack on first run
+**/metadrive_assets/
+
+# Render/eval outputs
+out/
+*.mp4
+*.png
+
+# Python cruft
+__pycache__/
+*.pyc

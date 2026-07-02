@@ -14,7 +14,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/mpcr/Desktop/Golf Cart Code/bin/sync.sh</string>
+    <string>__REPO_DIR__/bin/sync.sh</string>
   </array>
 
   <!-- Run only when the user is logged in (no need at boot) -->

@@ -29,7 +29,10 @@ extern "C" {
  * Bus parameters
  * ========================================================================= */
 #define DBW_BUS_BITRATE_HZ      500000U
-#define EPAS_BUS_BITRATE_HZ     500000U   /* DCE autonomous mode rate */
+#define EPAS_BUS_BITRATE_HZ     500000U   /* DCE autonomous variant rate (§6.4).
+                                           Standard firmware is 1 Mbps (§5.3).
+                                           Bench tests at BOTH rates: zero RX.
+                                           Conclusion = wiring issue not bitrate. */
 #define VEHICLE_J1939_BITRATE_HZ 250000U  /* SAE J1939-11 standard */
 
 /* ============================================================================

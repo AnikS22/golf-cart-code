@@ -108,10 +108,14 @@ static inline void clear_faults_if_safe() {
 static IntervalTimer epas_tx_timer;
 
 static void epas_tx_isr() {
-    int8_t torque_demand = 0;
-    uint8_t map = 0;   // 0 = local mode (give wheel back to driver)
+    // ─── BENCH HACK — REMOVE FOR PRODUCTION ────────────────────────────────
+    // Forcing autonomous map + small torque demand at boot so we can verify
+    // the EPAS bus is wired and the autonomous firmware variant is loaded.
+    // Pull USB to stop. See git log for the proper state-machine-gated path.
+    int8_t  torque_demand = 15;            // ±64 full scale; 15 ≈ 23% torque
+    uint8_t map           = EPAS_MAP_AUTONOMOUS;  // map 2 = gentle autonomous
 
-    if (g_master_state == MASTER_STATE_ACTIVE && g_cmd.cmd_enable) {
+    if (false && g_master_state == MASTER_STATE_ACTIVE && g_cmd.cmd_enable) {
         // Outer PI: angle error → torque demand
         // (8-bit steering angle from EPAS msg #2 D0 needs mapping to centideg —
         // calibration of LH/RH stop bits gives us a linear map. Until calibrated,
@@ -134,17 +138,37 @@ static void epas_tx_isr() {
     }
     g_last_torque_demand = torque_demand;
 
-    epas_msg3_t m = epas_make_demand(map, torque_demand);
-    CAN_message_t f{};
-    f.id  = ID_EPAS_MSG3;
-    f.len = 8;
-    memcpy(f.buf, &m, 8);
-    epas_can.write(f);
+    // BENCH RX-ONLY TEST: TX disabled to rule out a FlexCAN_T4 TX/RX collision
+    // bug. If RX frames start arriving after this change, the issue was our
+    // 200 Hz TX ISR fighting the receive path. If still zero RX → wiring/EPAS.
+    (void)torque_demand;
+    (void)map;
+    // epas_msg3_t m = epas_make_demand(map, torque_demand);
+    // CAN_message_t f{};
+    // f.id  = ID_EPAS_MSG3;
+    // f.len = 8;
+    // memcpy(f.buf, &m, 8);
+    // epas_can.write(f);
 }
 
 // ─── EPAS bus: receive msg #1 / msg #2 ──────────────────────────────────────
 static void on_epas_rx(const CAN_message_t& f) {
     const uint32_t now = millis();
+    // BENCH DIAGNOSTIC: print every CAN2 frame raw, regardless of ID
+    Serial.print("[epas-rx] id=0x");
+    Serial.print(f.id, HEX);
+    Serial.print(" ext=");
+    Serial.print(f.flags.extended);
+    Serial.print(" len=");
+    Serial.print(f.len);
+    Serial.print(" buf=");
+    for (uint8_t i = 0; i < f.len; i++) {
+        if (f.buf[i] < 16) Serial.print('0');
+        Serial.print(f.buf[i], HEX);
+        Serial.print(' ');
+    }
+    Serial.println();
+
     if (f.id == ID_EPAS_MSG1 && f.len == 8) {
         memcpy(&g_epas.msg1, f.buf, 8);
         g_epas.msg1_last_ms = now;
@@ -306,6 +330,7 @@ void setup() {
     epas_can.setMaxMB(16);
     epas_can.enableFIFO();
     epas_can.enableFIFOInterrupt();
+    epas_can.setFIFOFilter(ACCEPT_ALL);   // explicit accept-all (some lib versions default to reject)
     epas_can.onReceive(on_epas_rx);
 
     // Hard 200 Hz timer for EPAS msg #3 TX

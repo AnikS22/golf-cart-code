@@ -1,0 +1,34 @@
+Bootstrap: docker
+From: ghcr.io/commaai/openpilot-base:latest
+
+# Apptainer image = RUNTIME ONLY (system + python deps + MetaDrive).
+# The openpilot SOURCE is NOT baked in — it's cloned/built on the host and
+# bind-mounted at run time, so editing the GEM overlay doesn't force a rebuild.
+#
+# Build on the LOGIN node (needs internet):
+#   apptainer build gem_sim.sif gem_sim.def
+# If your site requires it: apptainer build --fakeroot gem_sim.sif gem_sim.def
+#
+# openpilot-base already carries openpilot's system libs + a uv-managed python.
+# We add MetaDrive (from source — the PyPI build is broken, see project memory)
+# and OpenCV (for the mp4 recorder in the overlay).
+
+%post
+    set -e
+    # MetaDrive from source (uses gymnasium; PyPI metadrive-simulator is broken).
+    pip install --no-cache-dir "git+https://github.com/metadriverse/metadrive.git@main" || \
+      uv pip install --system "git+https://github.com/metadriverse/metadrive.git@main"
+    pip install --no-cache-dir opencv-python-headless || uv pip install --system opencv-python-headless
+    # Pre-fetch MetaDrive's asset pack into the image so compute nodes need no net.
+    python -c "from metadrive.engine.asset_loader import AssetLoader" || true
+
+%environment
+    export SIMULATION=1
+    export PYTHONUNBUFFERED=1
+    # headless GL: EGL avoids needing an X server on compute nodes
+    export MESA_GL_VERSION_OVERRIDE=3.3
+    export DISPLAY=
+
+%labels
+    project golf-cart-gem-openpilot
+    purpose "Run Comma's model driving a GEM in MetaDrive, headless, on SLURM+GPU"
