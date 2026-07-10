@@ -29,10 +29,14 @@ extern "C" {
  * Bus parameters
  * ========================================================================= */
 #define DBW_BUS_BITRATE_HZ      500000U
-#define EPAS_BUS_BITRATE_HZ     500000U   /* DCE autonomous variant rate (§6.4).
-                                           Standard firmware is 1 Mbps (§5.3).
-                                           Bench tests at BOTH rates: zero RX.
-                                           Conclusion = wiring issue not bitrate. */
+#define EPAS_BUS_BITRATE_HZ     250000U   /* MEASURED on the cart 2026-07-10 by
+                                           sweeping CAN2 receive-only: 250k is
+                                           the only rate that decodes frames
+                                           (0x290+0x292, REC=0, ERROR_ACTIVE).
+                                           500k and 1M both give zero RX with
+                                           REC pinned ~130 — that is a bitrate
+                                           mismatch, not the wiring fault the
+                                           old comment here claimed. */
 #define VEHICLE_J1939_BITRATE_HZ 250000U  /* SAE J1939-11 standard */
 
 /* ============================================================================
@@ -54,14 +58,21 @@ extern "C" {
 /* ============================================================================
  * CAN IDs — EPAS BUS (DCE Motorsport fixed protocol)
  *
- * The EPAS18 Ultra ECU's autonomous-firmware variant accepts msg #3 (0x296)
- * at 50–200 Hz. 200 ms timeout reverts to local power-assist mode.
- * Standard firmware does NOT respond to msg #3 — that variant is purchased
- * separately from DCE Motorsport. See reference_epas18_ultra.md.
+ * The EPAS18 Ultra ECU on this cart accepts msg #3 on ID 0x298 (NOT the 0x296
+ * printed in the DCE manual) at 50–200 Hz; 200 ms timeout reverts to local
+ * power-assist. VERIFIED ON HARDWARE 2026-07-10: commanding 0x298 {map,torque,
+ * 0..} made selected_map echo, the remote bit set, and the column motor turn
+ * (duty/current/angle all responded). 0x296 was silently ignored — ACK'd at the
+ * CAN bit level but dropped by the ECU's ID filter, which looked like "standard
+ * firmware / no autonomous variant." It is NOT: the autonomous firmware is
+ * present; the manual's msg#3 ID is just wrong for this unit. Frame is {D0=map
+ * 0/1, D1=torque 128=center, D2..=0}; the mirror byte the manual describes is
+ * NOT required here. See reference_epas18_ultra.md and Old_code/steering.
  * ========================================================================= */
 #define ID_EPAS_MSG1            0x290U  /* EPAS -> bus, 100 ms (torque/duty/I/V/temp + raw torque A/B) */
 #define ID_EPAS_MSG2            0x292U  /* EPAS -> bus, 100 ms (angle/map/error/status/limits) */
-#define ID_EPAS_MSG3            0x296U  /* bus -> EPAS, 5 ms / 200 Hz (map + torque demand) */
+#define ID_EPAS_MSG3            0x298U  /* bus -> EPAS, 50–200 Hz (map + torque demand). 0x298 verified on
+                                           hardware 2026-07-10; manual's 0x296 is ignored by this ECU. */
 
 /* ============================================================================
  * Periods (ms)

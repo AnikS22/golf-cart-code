@@ -10,7 +10,7 @@
  *
  * Hardware: Teensy 4.1 in Steering Aux Box on firewall.
  *   CAN1 (pins 22/23) → DBW bus @ 500 kbps  (twisted pair, Deutsch DT04-4P)
- *   CAN2 (pins  0/ 1) → EPAS bus @ 500 kbps (DCE protocol)
+ *   CAN2 (pins  0/ 1) → EPAS bus @ 250 kbps (DCE protocol)
  *   USB serial        → console at 115200 (status + tuning)
  *
  * The EPAS18 internal motor-current loop is closed inside the ECU itself;

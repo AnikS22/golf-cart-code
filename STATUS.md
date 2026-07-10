@@ -29,13 +29,13 @@ Last updated: 2026-05-03. Auto-pushed every 10 min via launchd; check `/tmp/golf
 | Lanelet2 HD map | ⛔ Not started |
 | Autoware Universe integration | ⛔ Not started |
 | FAU Risk Mgmt approval | ⛔ Not contacted |
-| DCE autonomous firmware confirmation | ⛔ Email pending (after cart visit) |
+| DCE autonomous firmware confirmation | ✅ CONFIRMED PRESENT — bench-steered via CAN 2026-07-10 (ID 0x298 @ 250k) |
 
 ## Critical gates (block phase advancement)
 
 | Gate | Owner | Unblocks |
 |---|---|---|
-| **DCE autonomous firmware loaded on EPAS18 ECU** | Email DCE after cart visit | All steering work |
+| ~~DCE autonomous firmware loaded on EPAS18 ECU~~ | ✅ DONE — steered on bench 2026-07-10 | ~~All steering work~~ UNBLOCKED |
 | **EPAS backdrive confirmed** | Cart visit hand-test | Manual override safety case |
 | **Pack voltage confirmed (48 V vs 72 V)** | Cart visit multimeter | DC-DC procurement |
 | **GEM throttle Hall pair characterized** | Cart visit multimeter sweep | DAC bypass calibration |
