@@ -33,8 +33,11 @@
 #include <FlexCAN_T4.h>
 
 #define BRAKE_BUS_BITRATE_HZ  250000U
-#define ID_KT_CMD             0x18FF0000UL   // default command ID (extended)
-#define ID_KT_REPORT          0x18FF0001UL   // default report ID  (extended)
+// Priority 0 CONFIRMED on-bench 2026-07-17: the actuator transmits on 0xFF0001 and
+// only accepts commands at 0xFF0000 — it filters priority, so 0x18FF0000 (prio 6)
+// was silently ignored. Verified via a confirmation-flag echo of our exact frame.
+#define ID_KT_CMD             0x00FF0000UL   // default command ID, priority 0 (extended)
+#define ID_KT_REPORT          0x00FF0001UL   // default report ID,  priority 0 (extended)
 
 static constexpr int      POS_OFFSET   = 500;    // counts added to inches*1000
 static constexpr int      POS_MIN      = 550;    // 0.05" — datasheet working min
@@ -59,7 +62,8 @@ uint32_t g_stage_ms  = 0;                 // last clutch/motor transition
 uint32_t g_last_rx_ms = 0;                // any serial byte refreshes this
 
 kt_report_t g_rep{};
-uint32_t g_rep_last_ms = 0;
+uint32_t g_rep_last_ms = 0;   // last Enhanced Position Report (byte0=152)
+uint32_t g_alive_ms   = 0;    // last ANY frame on the report ID
 bool g_have_rep = false;
 
 IntervalTimer g_tx_timer;
@@ -81,9 +85,11 @@ static void tx_isr() {
 }
 
 static void on_rx(const CAN_message_t& f) {
-  if (f.flags.extended && f.id == ID_KT_REPORT && f.len == 8 && f.buf[0] == 152) {
+  if (!f.flags.extended || f.id != ID_KT_REPORT) return;
+  g_alive_ms = millis();
+  if (f.len == 8 && f.buf[0] == 152) {   // Enhanced Position Report
     memcpy(&g_rep, f.buf, 8);
-    g_rep_last_ms = millis();
+    g_rep_last_ms = g_alive_ms;
     g_have_rep = true;
   }
 }
@@ -149,13 +155,14 @@ void loop() {
 
   if (now - last_status >= 200) {   // 5 Hz
     last_status = now;
-    const bool live = g_have_rep && (now - g_rep_last_ms < 500);
+    const bool alive = (now - g_alive_ms < 500);
+    const bool live  = g_have_rep && (now - g_rep_last_ms < 500);
     const int  rc   = (g_rep.shaft_hi << 8) | g_rep.shaft_lo;
     const int  cur  = (g_rep.cur_hi << 8) | g_rep.cur_lo;
     Serial.print("[st] ");     Serial.print(g_want_eng ? "ENG " : "IDLE");
     Serial.print(g_clutch ? " C" : " -"); Serial.print(g_motor ? "M" : "-");
     Serial.print(" tgt=");     Serial.print((g_target - POS_OFFSET) / 1000.0f, 3);
-    Serial.print("in | KT ");  Serial.print(live ? "OK" : "??");
+    Serial.print("in | KT ");  Serial.print(alive ? (live ? "OK " : "alive") : "?? ");
     Serial.print(" pos=");     Serial.print(live ? (rc - POS_OFFSET) / 1000.0f : 0.0f, 3);
     Serial.print("in cur=");   Serial.print(cur);
     Serial.print("mA err=0x"); Serial.println(g_rep.errors, HEX);

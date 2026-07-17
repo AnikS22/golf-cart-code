@@ -51,20 +51,27 @@ This DECODES the old "magic" 2020 frames: e.g. `15,74,196,137` = clutch-on/motor
 - motor current bytes5-6 in mA.
 - Other reports: Position(128), MotorCur/Temp(129), SWrev(239), DeviceID(168), Zeroing(238). Poll any via Report-Poll `0xF1` (info request, **no motion**).
 
-## BENCH FINDING 2026-07-17 — TX works, RX silent (KT ??)
-First bench attempt with `brake_test_teensy` (CAN2 @ 250k, same transceiver as steering):
-commanding position made the actuator **physically respond — audible banging** (= the
-position-reach-error retry: motor pulsed full-on trying to reach an unreachable target),
-proving **TX is received**. But the Teensy got **zero reports back** (status showed `KT ??`,
-pos/cur/err all default zeros) even with auto-reply (byte1=0x4A) set. So **RX is silent**.
-Steering RX worked on this exact transceiver, so the hardware RX path is fine → most likely
-the **2020 team reassigned the actuator's User-Defined Report ID** (saved in NVM, survives
-power cycles), so reports arrive on a non-default ID we weren't listening for. Next step:
-`brake_sniff_teensy` — a safe poll-and-listen firmware (sends only harmless `0xF1` Report
-Polls, never a motion command) that prints every CAN ID on the bus to reveal the real
-report ID. If it STILL sees nothing while polling, RX is genuinely not getting through
-(CAN-H/L swap / termination / actuator power). Banging with tiny targets may also mean the
-internal position sensor needs Auto Zero Calibration (shaft uncoupled, cmd `0x7E`).
+## BENCH FINDING 2026-07-17 — RESOLVED: it's a PRIORITY-0 unit (not 0x18FF00xx)
+Root cause of the first-attempt "RX silent / banging" was **J1939 priority bits**. This is
+an **old (2018) actuator that filters on priority** (the datasheet FAQ p.37 warns of exactly
+this). It transmits AND accepts commands at **priority 0**, not the priority-6 form:
+- **Command ID = `0xFF0000`** (raw extended `0x00FF0000`), NOT `0x18FF0000`.
+- **Report  ID = `0xFF0001`** (raw extended `0x00FF0001`), NOT `0x18FF0001`.
+
+Diagnosis path (via `brake_sniff_teensy`, listen + harmless requests, no motion):
+1. Sniffer saw the actuator transmit on `0xFF0001` (priority 0) — a 3-byte `A9 00 EF`
+   heartbeat — while ignoring all our priority-6 commands.
+2. Sending a position command with the **Confirmation flag** (`byte1=0x8A`) at `0xFF0000`
+   got our exact frame **echoed back** `[15 138 88 2 …]` → proves TX+RX+command-acceptance,
+   at priority 0.
+3. Fixed `brake_test_teensy` to cmd `0xFF0000` / report `0xFF0001`. Passive read (motor off)
+   now returns the Enhanced Position Report cleanly:
+   `IDLE  KT OK  pos=1.756in  cur=2mA  err=0x0` — **healthy, calibrated, no faults.**
+
+So: comms fully working, sensor fine (err=0), no Auto-Zero-Cal needed. The earlier banging
+was just the actuator never actually servicing our (priority-6, ignored) commands. Next:
+controlled motion test — engage and command a small move from current pos, watch `pos` track.
+(Mirror byte / 0x18FF00xx assumptions elsewhere in the repo are WRONG for this unit.)
 
 ## Files in the repo
 

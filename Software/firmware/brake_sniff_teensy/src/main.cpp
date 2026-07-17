@@ -18,7 +18,9 @@
 #include <FlexCAN_T4.h>
 
 #define BUS_BITRATE_HZ  250000U
-#define ID_KT_CMD       0x18FF0000UL   // default command ID (extended) — polls go here
+// Actuator TRANSMITS on 0xFF0001 = priority 0. Old (2018) units filter priority,
+// so commands must match: send to 0xFF0000 (priority 0), NOT 0x18FF0000 (prio 6).
+#define ID_KT_CMD       0x00FF0000UL   // default command ID, priority 0 (extended)
 
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> can;
 
@@ -66,13 +68,17 @@ void setup() {
   can.onReceive(on_rx);
 }
 
-// Report Poll: ask for Position(0x80), Enhanced(0x98), MotorCur(0x81),
-// DeviceID(0xA8), SWrev(0xEF). Byte0=0xF1, byte1=0 (no confirm). NO motion.
+// PASSIVE position request: position command with clutch OFF + motor OFF +
+// auto-reply. Datasheet: CE=0/M=0 => "passive mode, shaft free" (NO motion), and
+// A=1 => actuator replies with the Enhanced Position Report. Also fire an F1
+// Report-Poll as a fallback. Both are info-only; neither moves the shaft.
 static void poll() {
+  // Passive position cmd with CONFIRMATION (byte1=0x8A: C=1,A=0,DT=0x0A) + motor
+  // OFF (byte3=0x02). If the actuator accepts it, it echoes THIS exact frame back
+  // on the report ID -> we'll see [15 138 88 2 ...]. No motion (M=0).
   CAN_message_t f{};
   f.id = ID_KT_CMD; f.flags.extended = 1; f.len = 8;
-  f.buf[0] = 0xF1; f.buf[1] = 0x00;
-  f.buf[2] = 0x80; f.buf[3] = 0x98; f.buf[4] = 0x81; f.buf[5] = 0xA8; f.buf[6] = 0xEF; f.buf[7] = 0xFF;
+  f.buf[0] = 0x0F; f.buf[1] = 0x8A; f.buf[2] = 0x58; f.buf[3] = 0x02;
   can.write(f);
 }
 
@@ -91,8 +97,9 @@ void loop() {
       Serial.print(s.ext ? "EXT 0x" : "STD 0x");
       Serial.print(s.id, HEX);
       Serial.print(" x"); Serial.print(s.count);
+      Serial.print(" len="); Serial.print(s.len);
       Serial.print(" [");
-      for (int b = 0; b < s.len; b++) { if (b) Serial.print(' '); Serial.print(s.buf[b]); }
+      for (int b = 0; b < 8; b++) { if (b) Serial.print(' '); Serial.print(s.buf[b]); }
       Serial.print("]");
       const char* t = kt_type(s.buf[0]);
       if (*t) { Serial.print("  <"); Serial.print(t); Serial.print(">"); }
