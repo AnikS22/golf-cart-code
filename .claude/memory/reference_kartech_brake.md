@@ -69,9 +69,19 @@ Diagnosis path (via `brake_sniff_teensy`, listen + harmless requests, no motion)
    `IDLE  KT OK  pos=1.756in  cur=2mA  err=0x0` — **healthy, calibrated, no faults.**
 
 So: comms fully working, sensor fine (err=0), no Auto-Zero-Cal needed. The earlier banging
-was just the actuator never actually servicing our (priority-6, ignored) commands. Next:
-controlled motion test — engage and command a small move from current pos, watch `pos` track.
+was just the actuator never actually servicing our (priority-6, ignored) commands.
 (Mirror byte / 0x18FF00xx assumptions elsewhere in the repo are WRONG for this unit.)
+
+### MOTION CONFIRMED 2026-07-17 — control proven, mechanical linkage is the last gap
+Logged move (engage → extend 4×0.1" → retract): `pos` tracked `tgt` within ~0.04" both
+directions. Extend drew ~2 mA (free), retract climbed 734→2822→**5121 mA** (near the 5.8 A
+hardware max) — that's the "max" noise heard. **The shaft strokes correctly; the actuator +
+firmware are done.** The brake pedal does NOT move because **the actuator rod is not yet
+mechanically coupled to the pedal** (stroking in open air). Remaining work is purely
+mechanical: Kar-Tech **linkage kit 1A0018A** (clevis + rod-end) or a custom bracket from the
+rod eye to the pedal arm. TODO once linked: (a) confirm which stroke direction APPLIES the
+brake; (b) set Motor-Over-Current (cmd `0x7E`, DT `0x03`) to cap force so it can't slam the
+pedal — it already touches ~5.1 A unloaded. Working brake firmware: `brake_test_teensy`.
 
 ## Files in the repo
 
