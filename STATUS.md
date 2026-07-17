@@ -23,8 +23,9 @@ Last updated: 2026-07-17. Auto-pushed every 10 min via launchd; check `/tmp/golf
 
 | Track | Status |
 |---|---|
-| Real-cart Teensy firmware | 🟡 Steering + brake DBW bring-up bench-done on Teensy 4.1; Motion/Pedals integration firmware still to write |
-| Real-cart Jetson `gem_dbw_bridge` (C++) | ⛔ Not started |
+| Real-cart Teensy firmware | 🟡 Steering + brake DBW bring-up bench-done on Teensy 4.1; Motion/Pedals integration firmware still to write. **Plan: `Software/ROS_INTEGRATION_PLAN.md`** |
+| Real-cart Jetson `gem_dbw_bridge` (Python) | 🟡 Implemented + smoke-tested (opens can0, 0x100 HB byte-perfect); needs 0x121/0x131/0x112 decode + firmware reconcile per `Software/ROS_INTEGRATION_PLAN.md` |
+| ROS ↔ Teensy DBW integration | 📋 Planned, not started — see `Software/ROS_INTEGRATION_PLAN.md` (reconcile protocol + port proven bench code + close telemetry) |
 | FAU campus T2 world build | ⛔ Not started |
 | FAU campus T3 world build | ⛔ Not started |
 | Lanelet2 HD map | ⛔ Not started |
