@@ -1,6 +1,6 @@
 # Status & Timeline
 
-Last updated: 2026-05-03. Auto-pushed every 10 min via launchd; check `/tmp/golf-cart-sync.log`.
+Last updated: 2026-07-17. Auto-pushed every 10 min via launchd; check `/tmp/golf-cart-sync.log`.
 
 ## Where we are right now
 
@@ -9,7 +9,8 @@ Last updated: 2026-05-03. Auto-pushed every 10 min via launchd; check `/tmp/golf
 | Master plan | ✅ Locked, approved | `Masterplan.md` |
 | System design (BOM + procurement) | ✅ Ready to buy off | `Hardware/system_design.md` |
 | Recovered 2020 artifacts | ✅ Inventoried | `Hardware/OneDrive_1_5-1-2026/` |
-| Steering protocol (EPAS18 Ultra CAN) | ✅ Documented; firmware status TBD | `Software/firmware/common/include/dbw_can_protocol.h` (msg IDs 0x290/0x292/0x296) |
+| Steering protocol (EPAS18 Ultra CAN) | ✅ Bench-confirmed 2026-07-10 (steered column via CAN) | EPAS bus 250 kbps, 11-bit IDs; cmd ID `0x298` (not the manual's 0x296). Bench fw `Software/firmware/steer_test_teensy` (+ `drive.py`) |
+| Brake protocol (Kar-Tech 1A001HAJ CAN actuator) | ✅ Bench-confirmed 2026-07-17 (shaft strokes, position tracks cmd) | SAE J1939, 29-bit, 250 kbps, priority-0: cmd `0xFF0000` / report `0xFF0001`. Bench fw `Software/firmware/brake_test_teensy` (+ `brake.py`, `brake_sniff_teensy`) |
 | Vehicle telemetry (J1939 read-only) | ✅ PGN dictionary recovered | `Hardware/OneDrive_1_5-1-2026/Arduino Code/PGN Data.docx` |
 | Digital twin URDF (sensors + chassis) | ✅ Built; canonical params discipline enforced | `Sim/.../gem_sim/urdf/` |
 | Sim DBW bridge (state machine + safety) | ✅ Coded; mirrors real Teensy firmware | `Sim/.../sim_dbw_bridge/` |
@@ -22,7 +23,7 @@ Last updated: 2026-05-03. Auto-pushed every 10 min via launchd; check `/tmp/golf
 
 | Track | Status |
 |---|---|
-| Real-cart Teensy firmware | ⛔ Not started — no Teensies bought |
+| Real-cart Teensy firmware | 🟡 Steering + brake DBW bring-up bench-done on Teensy 4.1; Motion/Pedals integration firmware still to write |
 | Real-cart Jetson `gem_dbw_bridge` (C++) | ⛔ Not started |
 | FAU campus T2 world build | ⛔ Not started |
 | FAU campus T3 world build | ⛔ Not started |
@@ -90,7 +91,7 @@ Last updated: 2026-05-03. Auto-pushed every 10 min via launchd; check `/tmp/golf
 - Phase 3 demo: scripted obstacles on T2 academic core.
 
 ### Week 25+ — Nov 2026 onward
-- Brake actuator integration (Phase 2 hardware).
+- Brake actuator mechanical integration — control/comms bench-done 2026-07-17; only rod-to-pedal coupling remains (Kar-Tech linkage kit 1A0018A or custom bracket).
 - T3 full-campus mapping.
 - Unmanned readiness (Phase 4).
 

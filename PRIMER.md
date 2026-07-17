@@ -48,7 +48,7 @@ We use Teensies (not the Jetson itself) for actuator control because microcontro
 ### EPAS18 Ultra ECU (the steering brain — ALREADY ON THE CART)
 EPAS = Electric Power Assisted Steering. Originally for race cars / kit cars; the 2020 FAU team installed one on this cart. It has its OWN motor (called EPAS01 column) that grips the steering shaft, its OWN torque sensor that feels how hard you turn the wheel, and its OWN computer (the ECU) that decides how much to help. We just feed it commands over CAN bus and it does the steering.
 
-**Important**: it needs a special "autonomous firmware" variant from the manufacturer (DCE Motorsport, UK) — without it, the ECU only operates as power-assist (helps a human turn the wheel), not as autonomous control. We need to confirm this firmware is loaded; that's a pending email.
+**Important**: it needs a special "autonomous firmware" variant from the manufacturer (DCE Motorsport, UK) — without it, the ECU only operates as power-assist (helps a human turn the wheel), not as autonomous control. That firmware is confirmed present and working: steering is **bench-confirmed (2026-07-10)** — the column was steered over CAN with command ID 0x298 at 250 kbps (11-bit IDs), using bench firmware `steer_test_teensy` + `drive.py`.
 
 ### Traction controller (the cart's gas-pedal brain — ALREADY ON THE CART)
 The big gold finned heatsink box in your photo. It's a **Sevcon Gen4** (or Curtis 1238). It takes the throttle pedal's voltage signal and decides how much power to send to the drive motor. We don't replace it — we **fool it** by injecting fake voltage signals instead of the pedal's real ones.
@@ -58,7 +58,7 @@ The big gold finned heatsink box in your photo. It's a **Sevcon Gen4** (or Curti
 
 We have THREE CAN buses (kept physically separate so one fault doesn't crash everything):
 - **DBW bus** (500 kbps) — our private bus: Jetson ↔ both Teensies. Our protocol, our message IDs.
-- **EPAS bus** (500 kbps) — between the Motion Teensy and the EPAS18 ECU. DCE Motorsport's protocol.
+- **EPAS bus** (250 kbps, 11-bit IDs) — between the Motion Teensy and the EPAS18 ECU. DCE Motorsport's protocol.
 - **Vehicle J1939 bus** (250 kbps, READ-ONLY) — the GEM's own internal CAN. We can listen but **never** transmit on it, because writing to the wrong message could brick the traction controller.
 
 ### MCP4725 DAC (the throttle voltage faker)
@@ -102,7 +102,7 @@ You hold the Logitech F710 gamepad. You push the left stick to the right.
 3. MOTION TEENSY            Receives 0x110 STEER_CMD (steering angle)
                             Runs a PI controller: "we want X angle,
                             we have Y angle, push by Z newton-meters"
-                            Sends 0x296 to EPAS18 ECU
+                            Sends 0x298 to EPAS18 ECU
        │ EPAS CAN bus
        ▼
 4. EPAS18 ECU               Receives torque command
@@ -136,7 +136,7 @@ Each step is 20 ms or faster. Total latency from gamepad to wheel: ~100 ms (most
         │                                            ├──► EPAS18 ECU
         │                                            └──► DAC chips, relay, sensors
         │
-        └──► (Phase 2) Pololu 12V→19V ──► linear actuator for brake
+        └──► (Phase 2) Kar-Tech 1A001HAJ CAN brake actuator (10–30 VDC, off the 12 V aux bus)
 ```
 
 **Orange wires = high voltage (72 V).** Never touch them. The cart's drive motor and battery are at 72 V — enough to kill you on damp skin. We always work on the 12 V side after the DC-DC step-down.
@@ -189,7 +189,7 @@ You arm + engage via dash buttons. Any of these auto-DISENGAGE: brake pedal pres
 
 ### CAN bus
 A bus is a shared wire that multiple devices listen to. Every CAN message has:
-- **ID** (11-bit, like 0x100 or 0x296) — a number that identifies what kind of message it is
+- **ID** (11-bit, like 0x100 or 0x298) — a number that identifies what kind of message it is
 - **Up to 8 bytes** of data
 
 We defined our own protocol — see `Software/firmware/common/include/dbw_can_protocol.h`. Key IDs:
@@ -252,6 +252,9 @@ Software/            ← all code that runs on the cart
     common/include/dbw_can_protocol.h   ← THE shared CAN protocol header
     motion_teensy/                       ← Motion Teensy firmware (C++)
     pedals_teensy/                       ← Pedals Teensy firmware (C++)
+    steer_test_teensy/                   ← bench steering firmware (+drive.py); EPAS18 confirmed 2026-07-10
+    brake_test_teensy/                   ← bench brake firmware (+brake.py); Kar-Tech confirmed 2026-07-17
+    brake_sniff_teensy/                  ← brake J1939 diagnostic sniffer
   autonomy_ws/src/
     gem_dbw_bridge/                      ← Python, runs on Jetson, ROS↔CAN
     gem_teleop/                          ← Python, gamepad → ROS command
@@ -532,7 +535,7 @@ Work outward from power, in. **Always.**
 3. **Ground loops** — multiple ground paths cause weird noise that's nearly impossible to debug. Single-point star ground at the aux battery negative, period.
 4. **DPDT relay wired wrong** — easy to put pedal and DAC on the wrong sides. Test the relay logic with a multimeter in continuity mode before energizing.
 5. **Software FAULT is sticky** — by design. Don't add ways to clear it from software. If you keep ending up in FAULT, fix the cause, not the symptom.
-6. **EPAS18 in local mode silently** — if the autonomous firmware isn't loaded, msg `0x296` does nothing. The ECU won't error, it just won't steer. Confirm the firmware variant via DCE.
+6. **EPAS18 in local mode silently** — if the autonomous firmware isn't loaded, msg `0x298` does nothing. The ECU won't error, it just won't steer. (On our cart the variant is confirmed loaded — steering bench-confirmed 2026-07-10.)
 7. **Pedal Hall pair voltage flipped** — V1 and V2 mirror each other. Swap them and the traction controller faults on plausibility check. Document the orientation before splicing.
 8. **`ros2: command not found`** — you forgot `source /opt/ros/humble/setup.bash` in this terminal. Add it to your `.bashrc` once you're tired of typing it.
 9. **Building the wrong workspace** — `Sim/...` and `Software/autonomy_ws/` are different colcon workspaces. Same `colcon build` command, different `cd` first.
@@ -616,7 +619,7 @@ The 2020 team considered injecting throttle commands directly onto the GEM's J19
 72 V DC will kill you. Always confirm the master cutoff is off, wait 5 minutes for Sevcon caps to discharge, work on the 12 V side after the DC-DC step-down. This isn't ceremony — it's the actual safety case.
 
 **19. Vendor firmware matters as much as your firmware.**
-The EPAS18 ECU is useless without DCE Motorsport's autonomous firmware variant. The standard firmware does power-steering assist only; msg `0x296` does nothing. **Confirm vendor firmware variants before you commit to the hardware.** This nearly bit the 2020 team and would bite us if we didn't email DCE early.
+The EPAS18 ECU is useless without DCE Motorsport's autonomous firmware variant. The standard firmware does power-steering assist only; msg `0x298` does nothing. **Confirm vendor firmware variants before you commit to the hardware.** This nearly bit the 2020 team; on our cart the variant is confirmed loaded (steering bench-confirmed 2026-07-10).
 
 **20. The plan is going to change.**
 You're reading version N of the master plan. By Phase 2 it'll be version N+5. That's healthy — plans should update with learnings. What's not healthy is plans that pretend to be done and ignore new information. Treat the plan as a living document; commit updates with reasons; use git history to trace the why.

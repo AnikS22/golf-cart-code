@@ -41,7 +41,7 @@ flowchart LR
 
   Jetson <-->|DBW CAN @ 500 kbps| MotionT
   Jetson <-->|DBW CAN @ 500 kbps| PedalsT
-  MotionT <-->|EPAS bus 500 kbps| EPAS
+  MotionT <-->|EPAS bus 250 kbps| EPAS
   PedalsT -->|I²C + GPIO| Throttle
   PedalsT -.->|PWM Phase 2| Brake
   PedalsT <-.->|ISO1042 read-only| GEMCAN
@@ -69,7 +69,7 @@ flowchart TB
     MCAN1 <-->|120Ω term| PCAN1
   end
 
-  subgraph EPAS["EPAS BUS — 500 kbps (DCE Motorsport internal)"]
+  subgraph EPAS["EPAS BUS — 250 kbps (DCE Motorsport internal)"]
     direction LR
     MCAN2[Motion Teensy CAN2]
     EPASECU[EPAS18 Ultra ECU<br/>signal conn pins 19/20 or 29/30]
@@ -222,7 +222,7 @@ flowchart TB
   end
 
   subgraph Pedal["PEDAL AREA"]
-    Plot["Pedals Aux Box<br/>(DAC + relay + brake H-bridge Phase 2)"]
+    Plot["Pedals Aux Box<br/>(DAC + relay + brake actuator CAN Phase 2)"]
   end
 
   subgraph Seat["UNDER-DRIVER-SEAT"]
@@ -297,7 +297,7 @@ flowchart LR
   Game -->|USB-A ❶| Jet
   Jet -->|"40-pin CAN_H/L ❾<br/>500 kbps, 120 Ω term"| MotT
   Jet -->|same DBW bus| PedT
-  MotT -->|EPAS bus<br/>500 kbps| EPAS
+  MotT -->|EPAS bus<br/>250 kbps| EPAS
   PedT -->|2× analog Hall voltages<br/>via DPDT relay| HallTap
   Pwr  --> Jet
 

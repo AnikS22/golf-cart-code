@@ -96,6 +96,11 @@ Use tape measure to estimate (note as **approximate**, ±20 cm OK):
 
 ## END-OF-VISIT EMAIL TO DCE
 
+> **SUPERSEDED 2026-07-10 — NO LONGER NEEDED.** The autonomous firmware is
+> confirmed present and working: the column was bench-steered via CAN (cmd ID
+> 0x298 @ 250 kbps). The steering-firmware gate is CLOSED — you do not need to
+> email DCE. Kept below for historical reference only.
+
 Once you have item 1's serial number, send this email same-day. Without the autonomous firmware, the entire steering plan is blocked.
 
 > Subject: EPAS18 Ultra ECU — autonomous firmware availability
@@ -105,7 +110,7 @@ Once you have item 1's serial number, send this email same-day. Without the auto
 > I'm reviving an autonomous-vehicle research project at Florida Atlantic
 > University. We have an EPAS18 Ultra ECU installed on a Polaris GEM e4
 > (serial number: __________). Per User Guide §6 (Autonomous EPAS Operation),
-> autonomous control via CAN Msg #3 (ID 0x296) requires a firmware variant
+> autonomous control via CAN Msg #3 (ID 0x298) requires a firmware variant
 > purchased separately.
 >
 > Could you tell me:

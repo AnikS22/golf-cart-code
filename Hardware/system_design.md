@@ -65,7 +65,7 @@ Master plan: `~/.claude/plans/i-need-your-help-hashed-dongarra.md`. This doc is 
 ### C.2 Steering (existing)
 | Item | Status | Interface |
 |---|---|---|
-| **DCE Motorsport EPAS18 Ultra ECU** | Installed, autonomous firmware status TBD (must verify with DCE) | CAN 500 kbps, msg IDs 0x290 (TX 100ms), 0x292 (TX 100ms), 0x296 (RX 5ms / 200Hz) |
+| **DCE Motorsport EPAS18 Ultra ECU** | Installed; bench-confirmed 2026-07-10, autonomous-firmware gate CLOSED (present & works — no purchase) | CAN 250 kbps, 11-bit IDs; msg IDs 0x290 (TX 100ms), 0x292 (TX 100ms), 0x298 (RX 5ms / 200Hz) |
 | **DCE EPAS01 Column Assist** motor + integrated torque sensor + steering angle sensor | Installed | Wired to EPAS18 ECU via Autosport AS016-08 (power) + AS014-35 (signal) |
 
 ### C.3 Throttle bypass

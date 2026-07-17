@@ -55,10 +55,12 @@ STATUS.md               Current status + week-by-week timeline.
 1. **Jetson is a DBW CAN gateway, not a sim host.** Don't try to run Gazebo
    or anything from `Sim/` on the Jetson. See
    `.claude/memory/feedback_jetson_role.md`.
-2. **Steering motor is identified**: it's a **DCE Motorsport EPAS18 Ultra**.
-   Protocol: TX 0x296 @ 200 Hz to ECU; RX 0x290+0x292 @ 100 Hz. **Requires the
-   "autonomous firmware variant"** purchased separately from DCE — confirm
-   before any steering work. Reference: `.claude/memory/reference_epas18_ultra.md`.
+2. **Steering is bench-confirmed** (2026-07-10, steered the column via CAN):
+   **DCE Motorsport EPAS18 Ultra**. EPAS bus = **250 kbps, 11-bit IDs**.
+   Command ID **0x298**, frame {D0=map: 0=local / 1–5=auto; D1=torque:
+   128=center ±64; D2..7=0}, no mirror byte, ~4-bit deadband. The
+   **autonomous-firmware gate is CLOSED** (present and works — no purchase
+   needed). Reference: `.claude/memory/reference_epas18_ultra.md`.
 3. **GEM internal CAN is J1939** (29-bit IDs, 250 kbps), READ-ONLY for us.
    Recovered PGN dictionary: `.claude/memory/reference_gem_e4_j1939_pgns.md`.
    Speed = PGN 65265 byte 4. Gear = PGN 61445 byte 6. Voltage = PGN 61444 byte 4.
@@ -100,17 +102,23 @@ Full details: `CROSS_DEVICE_RESUME.md`.
 
 ## What's currently working
 
-(Last verified: 2026-05-06.)
+(Last verified: 2026-07-17.)
 
 - ✅ Jetson Orin NX (Yahboom) at `192.168.55.1`: Ubuntu 22.04, ROS 2 Humble,
      `autonomy_ws` built, `can0` UP @ 500 kbps, `gem_dbw_bridge_node` opens
      can0 cleanly, all `/dbw/*` and `/vehicle/*` topics declared,
      0x100 JETSON_HEARTBEAT byte-perfect verified in loopback.
 - ✅ Repo auto-commits + pushes every 10 min via macOS launchd.
-- ✅ EPAS18 protocol documented; Teensy firmware skeletons written.
-- ⛔ No real Teensies, no parts ordered (waiting on cart inspection 2026-05-04 →
-     Tier 1 procurement).
-- ⛔ DCE EPAS18 autonomous firmware status NOT confirmed (gating; email DCE).
+- ✅ **Steering bench-confirmed (2026-07-10)**: EPAS18 Ultra steered via CAN
+     (0x298 @ 250 kbps, 11-bit). Bench firmware `Software/firmware/steer_test_teensy`
+     + `drive.py`, Teensy 4.1 FlexCAN_T4 CAN2 (pin0=RX, 1=TX). DCE autonomous-firmware
+     gate CLOSED (present and works).
+- ✅ **Brake bench-confirmed (2026-07-17)**: Kar-Tech 1A001HAJ CAN linear
+     actuator strokes, position tracks command (SAE J1939, priority-0,
+     cmd 0xFF0000 / report 0xFF0001). Bench firmware
+     `Software/firmware/brake_test_teensy` + `brake.py` (+ `brake_sniff_teensy`).
+     Remaining gap is **mechanical only** — rod not yet coupled to pedal
+     (Kar-Tech linkage kit 1A0018A). Reference: `.claude/memory/reference_kartech_brake.md`.
 - ⛔ FAU Risk Mgmt approval pipeline not started (long pole).
 
 ## Working norms (user prefers)

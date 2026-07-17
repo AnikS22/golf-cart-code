@@ -30,7 +30,7 @@ The translation is a **three-layer stack**:
 │  Motion Teensy:                                                           │
 │    - receives 0x110 STEER_CMD                                             │
 │    - runs outer-loop angle PI: angle_error → torque demand                │
-│    - sends 0x296 to EPAS bus @ 200 Hz: D0=map, D1=TorqueA, D2=TorqueB    │
+│    - sends 0x298 to EPAS bus @ 200 Hz: D0=map, D1=torque, D2..7=0 (no mirror)    │
 │    - reads 0x290+0x292 from EPAS bus → republishes 0x111+0x112 on DBW    │
 │    - monitors raw torque (0x290 D6/D7) for manual override                │
 │  Pedals Teensy:                                                           │
@@ -60,7 +60,7 @@ The translation is a **three-layer stack**:
 | Bridge formats CAN frame, writes to SocketCAN | ~1 ms |
 | CANable USB → DBW bus (transmit) | ~2 ms |
 | Motion Teensy receives, runs PI loop | ~5 ms (1 cycle of 200 Hz) |
-| Motion Teensy formats 0x296, transmits to EPAS bus | ~1 ms |
+| Motion Teensy formats 0x298, transmits to EPAS bus | ~1 ms |
 | EPAS18 ECU receives, updates motor demand | ~5 ms (1 cycle of 200 Hz internal) |
 | Motor + column mechanical response | 50–200 ms (steering inertia) |
 | **Total e2e steering** | **~70–220 ms (mechanically dominated)** |
@@ -166,9 +166,9 @@ Multiple layers of redundant checking is **the design**, not over-engineering. T
 | AGX Orin hardware wedges | Orin NX safety supervisor sees primary HB stop on local network | Safety supervisor publishes E-stop on a separate CAN ID; commands controlled stop |
 | DBW CAN bus errors flood | Teensies' CAN error counters spike | Master_state → FAULT; throttle 0; steering local mode |
 | EPAS18 throws fault (msg #2 D4 != 0) | Motion Teensy reads error code | Republish on DBW (0x111 D5); master_state → FAULT if E1xx is severe |
-| EPAS firmware NOT autonomous variant | Motion Teensy commands 0x296 but msg #2 D7 b7 (remote mode active) stays 0 | At startup, Motion Teensy sets fault flag IMMEDIATELY → never reach ACTIVE state. Refuse to engage. |
+| EPAS never enters remote mode (msg #2 D7 b7 stays 0) | Motion Teensy commands 0x298 but the remote-mode-active bit stays 0 | At startup, Motion Teensy sets fault flag IMMEDIATELY → never reach ACTIVE state. Refuse to engage. |
 | Throttle DAC mismatch (V1 + V2 inconsistent) | Traction controller faults; no motion | Pedals Teensy detects via no `/vehicle_state` speed change despite throttle command → fault |
-| Driver grabs steering wheel | Motion Teensy detects raw torque spike | Set 0x296 D0=0 within 50 ms; master_state → DISENGAGED; latched until re-arm |
+| Driver grabs steering wheel | Motion Teensy detects raw torque spike | Set 0x298 D0=0 within 50 ms; master_state → DISENGAGED; latched until re-arm |
 | Driver presses brake pedal | Pedals Teensy GPIO via brake-light optoisolator | Throttle = 0; master_state → DISENGAGED; latched |
 | HW E-stop pressed | Loop opens, Kilovac drops | All actuator power drops physically; software learns about it via 0x140 ESTOP_STATE |
 
@@ -177,7 +177,7 @@ Multiple layers of redundant checking is **the design**, not over-engineering. T
 ## Test order (firmware before vehicle)
 
 1. **Bench** — Both Teensies, CANable, laptop running candump. Verify all CAN messages round-trip per protocol header.
-2. **EPAS bench** — EPAS18 + EPAS01 column on a bench (off cart). Motion Teensy commands 0x296 with map=2, slow torque sweep. Verify msg #2 angle response.
+2. **EPAS bench** — EPAS18 + EPAS01 column on a bench (off cart). Motion Teensy commands 0x298 with map=2, slow torque sweep. Verify msg #2 angle response.
 3. **Throttle bench** — Pedals Teensy + DAC + op-amp + relay on a breadboard. Scope outputs at all throttle_permil values, compare to recorded pedal sweep.
 4. **J1939 sniff** — Tap GEM diag port (key on, cart on stands), capture 10 min, decode all PGN messages, verify against dashboard.
 5. **Cart wheels-off-ground** — All hardware installed. Joystick → bridge → Teensies → cart. Step inputs in steering, throttle ramps, manual override.

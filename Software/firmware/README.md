@@ -13,13 +13,18 @@ firmware/
 │   ├── platformio.ini
 │   └── src/
 │       └── main.cpp               # EPAS18 CAN bridge + outer steering PI
-└── pedals_teensy/                 # PlatformIO project — Pedals Aux Box
-    ├── platformio.ini
-    └── src/
-        └── main.cpp               # Throttle DAC, brake actuator (Phase 2),
-                                   # J1939 read-only sniffer, master state
-                                   # machine, E-stop / brake / wheel-touch
-                                   # monitoring
+├── pedals_teensy/                 # PlatformIO project — Pedals Aux Box
+│   ├── platformio.ini
+│   └── src/
+│       └── main.cpp               # Throttle DAC, brake actuator (Phase 2),
+│                                  # J1939 read-only sniffer, master state
+│                                  # machine, E-stop / brake / wheel-touch
+│                                  # monitoring
+├── steer_test_teensy/             # bench steering firmware (+ drive.py) —
+│                                  # EPAS18 confirmed via CAN 2026-07-10
+├── brake_test_teensy/             # bench brake firmware (+ brake.py) —
+│                                  # Kar-Tech confirmed via J1939 2026-07-17
+└── brake_sniff_teensy/            # brake J1939 diagnostic sniffer
 ```
 
 ## Build (when parts arrive)
@@ -53,10 +58,11 @@ cangen -I 100 -L 8 -D AABBCCDDEEFF0000 -g 50 can0
 
 ### Motion Teensy
 - **Two CAN buses**: CAN1 = DBW (Jetson + Pedals), CAN2 = EPAS (DCE Motorsport ECU). Bridges between them in firmware (no physical bridge for fault isolation).
-- **TX 0x296 to EPAS at 200 Hz** with map + torque demand pair. Outer PI loop drives angle error → torque demand. Inner motor-current loop is closed inside the EPAS18 ECU itself.
+- **TX 0x298 to EPAS at 200 Hz** with map + torque demand pair. Outer PI loop drives angle error → torque demand. Inner motor-current loop is closed inside the EPAS18 ECU itself.
 - **RX 0x290 + 0x292 from EPAS at 100 Hz**, cache state, republish on DBW as 0x111 (STEER_STATUS) and 0x112 (STEER_TORQUE_RAW).
-- **Manual override detection**: monitor raw torque bits in 0x290 D6/D7. Spike = driver grabbed wheel → set 0x296 D0 = 0 (local mode) within 50 ms → master state DISENGAGED.
+- **Manual override detection**: monitor raw torque bits in 0x290 D6/D7. Spike = driver grabbed wheel → set 0x298 D0 = 0 (local mode) within 50 ms → master state DISENGAGED.
 - **Heartbeat 0x150 at 50 Hz**. Jetson HB lost (no 0x100 in 100 ms) → fault, release EPAS.
+- **Bench-confirmed 2026-07-10**: EPAS18 Ultra steered via CAN (cmd 0x298 @ 250 kbps, 11-bit IDs) using bench firmware `steer_test_teensy` + `drive.py` on FlexCAN_T4 CAN2 (pin0=RX, 1=TX). DCE autonomous-firmware gate CLOSED — present and works, no purchase needed.
 
 ### Pedals Teensy
 - **Three CAN buses**: CAN1 = DBW, CAN2 = GEM J1939 (read-only via ISO1042 isolator), CAN3 = Kartech J1939 brake bus.
@@ -64,7 +70,7 @@ cangen -I 100 -L 8 -D AABBCCDDEEFF0000 -g 50 can0
 - **J1939 sniffer**: decode PGN 65265 (vehicle speed, mph), 61445 (gear: F/N/R/Charging), 61444 (voltage). Republish on DBW as 0x160 VEHICLE_STATE @ 50 Hz.
 - **Master state machine**: DISENGAGED → ARMED → ACTIVE → FAULT. ARM requires no faults + brake not pressed + wheel not touched. ENGAGE requires ARMED + Jetson HB OK.
 - **Safety inputs**: dash E-stop GPIO, brake-light optoisolator, wheel-touch via MPR121 cap-sense.
-- **Brake actuator**: Kartech 1A001HAJ via J1939 (PGN 65280) on CAN3. Proportional position control via `kartech::send_brake_permil()` at 50 Hz. Kartech runs its own closed-loop servo internally — no PID in our firmware.
+- **Brake actuator**: Kar-Tech 1A001HAJ CAN linear actuator via J1939 (PGN 65280) on CAN3. Proportional position control via `kartech::send_brake_permil()` at 50 Hz. Kar-Tech runs its own closed-loop servo internally — no PID in our firmware. **Bench-confirmed 2026-07-17** (shaft strokes, position tracks command) with bench firmware `brake_test_teensy` + `brake.py` (+ `brake_sniff_teensy` diagnostic); this old (2018) unit filters on J1939 priority and uses priority-0 IDs 0xFF0000 (command) / 0xFF0001 (Enhanced Position Report). Remaining gap is mechanical only — rod not yet coupled to the pedal (Kar-Tech linkage kit 1A0018A).
 - **Heartbeat 0x151 at 50 Hz**, ESTOP_STATE 0x140 at 50 Hz.
 
 ## Watchdog and safety gates (both Teensies)

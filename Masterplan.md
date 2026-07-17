@@ -20,7 +20,7 @@
  ┌─────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
  │                     Source                      │                                            Status                                             │                                                                            Use                                                                             │
  ├─────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
- │ OneDrive/Motor/EPAS18_* (5 PDFs + diagram)      │ Gold — full ECU docs                                                                          │ Steering interface = EPAS18 Ultra CAN protocol, msg IDs 0x290/0x292/0x296. See PART B.2.                                                                   │
+ │ OneDrive/Motor/EPAS18_* (5 PDFs + diagram)      │ Gold — full ECU docs                                                                          │ Steering interface = EPAS18 Ultra CAN protocol, msg IDs 0x290/0x292/0x298. See PART B.2.                                                                   │
  ├─────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
  │ OneDrive/Arduino Code/ARD1939/                  │ Working J1939 stack for Arduino + MCP2515                                                     │ Starting point for J1939 read-only sniffer firmware                                                                                                        │
  ├─────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
@@ -78,7 +78,7 @@
  ├────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
  │ DBW MCUs               │ 2× Teensy 4.1. Motion Teensy = EPAS18 CAN bridge + safety state echo. Pedals Teensy = throttle DAC + brake actuator + state machine + E-stop monitor + J1939 sniffer (3rd CAN controller — Teensy 4.1 has 3).                                                                                │
  ├────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
- │ DBW CAN bus            │ 500 kbps (matches EPAS18 autonomous mode), isolated from vehicle J1939 bus, twisted pair, 120 Ω term both ends, Deutsch DT04-4P, TJA1051T/3 transceivers, CANable 2.0 to Jetson                                                                                                              │
+ │ DBW CAN bus            │ 500 kbps (our DBW protocol — the separate EPAS bus runs 250 kbps), isolated from vehicle J1939 bus, twisted pair, 120 Ω term both ends, Deutsch DT04-4P, TJA1051T/3 transceivers, CANable 2.0 to Jetson                                                                                                              │
  ├────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
  │ Compute                │ Jetson AGX Orin 64GB Dev Kit (primary perception+planning); Jetson Orin NX 16GB (safety/logging hot-spare)                                                                                                                                                                                   │
  ├────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
@@ -210,7 +210,7 @@
  ┌───────────────┬───────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────┬────────────────────────────────────────┬───────────────────────────────┐
  │      MCU      │                       Lives in                        │                                                         Job                                                         │  CAN1   │                  CAN2                  │             CAN3              │
  ├───────────────┼───────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────┼────────────────────────────────────────┼───────────────────────────────┤
- │ Motion Teensy │ Steering Aux Box (firewall, in cabin near EPAS18 ECU) │ EPAS18 bridge: TX msg 0x296 @ 200 Hz, RX msg 0x290+0x292 @ 100 Hz, manual-override detection, fault echo to DBW bus │ DBW bus │ EPAS bus (separate or shared — see A6) │ unused                        │
+ │ Motion Teensy │ Steering Aux Box (firewall, in cabin near EPAS18 ECU) │ EPAS18 bridge: TX msg 0x298 @ 200 Hz, RX msg 0x290+0x292 @ 100 Hz, manual-override detection, fault echo to DBW bus │ DBW bus │ EPAS bus (separate or shared — see A6) │ unused                        │
  ├───────────────┼───────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────┼────────────────────────────────────────┼───────────────────────────────┤
  │ Pedals Teensy │ Pedals Aux Box (firewall above pedals)                │ Throttle DAC, brake actuator, state machine, E-stop monitor, brake-light tap, J1939 read-only sniffer               │ DBW bus │ J1939 vehicle bus (READ ONLY)          │ unused or 2nd J1939 if needed │
  └───────────────┴───────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴─────────┴────────────────────────────────────────┴───────────────────────────────┘
@@ -228,7 +228,7 @@
     │  120Ω at one end (CANable), 120Ω at other end (Pedals Teensy board)            │
     └────────────────────────────────────────────────────────────────────────────────┘
 
-    ┌────────────────────────── EPAS BUS (500 kbps, DCE-internal) ─────────────────┐
+    ┌────────────────────────── EPAS BUS (250 kbps, DCE-internal) ─────────────────┐
     │                                                                               │
     │  EPAS18 Ultra ECU (signal connector pins 19/20, 29/30) ─── Motion Teensy CAN2│
     │                                                                               │
@@ -262,7 +262,7 @@
  4. Verify wiring matches DCE diagram (OneDrive/Motor/EPAS18_Wiring_Diagram_-_USA.pdf).
 
  Steering control protocol (in firmware):
- - TX from Motion Teensy: ID 0x296 @ 200 Hz, D0=map (1–5 autonomous, 0=local), D1=Torque A, D2=Torque B, where D1+D2=255. Map=2 or 3 is a reasonable starting choice; tune up.
+ - TX from Motion Teensy: ID 0x298 @ 200 Hz, D0=map (1–5 autonomous, 0=local), D1=torque (128=center, ±64), D2..7=0 (no mirror byte needed on this unit — verified 2026-07-10). Map=2 or 3 is a reasonable starting choice; tune up.
  - RX into Motion Teensy: 0x290 (torque/duty/current/V/temp at 100 Hz), 0x292 (steering angle / map / status / limits at 100 Hz).
  - Manual override: when raw torque A/B (Msg #1 D6/D7) deviates from steady-state for >50 ms → set Msg #3 D0=0 (local mode) → EPS smoothly returns to power-assist behavior. Latch DISENGAGED in the master state machine.
 
@@ -605,7 +605,7 @@
  Toolchain: PlatformIO + Arduino-Teensy core. Libraries: FlexCAN_T4, WDT_T4.
 
  Main loop responsibilities:
- - 200 Hz: TX EPAS Msg #3 (ID 0x296) on EPAS bus with current map+torque demand.
+ - 200 Hz: TX EPAS Msg #3 (ID 0x298) on EPAS bus with current map+torque demand.
  - 100 Hz: RX EPAS Msg #1 (0x290) and Msg #2 (0x292) → cache state.
  - Compute torque demand from steering angle command:
    - Goal: drive measured steering angle (from Msg #2 D0) toward commanded angle.
@@ -822,7 +822,7 @@
  │ 0b    │ Wk 2–4  │ Build Pelican 1450 internals (compute box). Build 3 Aux Boxes. Run Channel R/D/S cables. Wire │ M1 comms backbone (both Teensies + CANable +      │ P0a Jetson + ROS 2 Humble bring-up.                                     │ Bench: kill loop drops Kilovac audibly; HB watchdog trips on Jetson  │
  │       │         │  E-stop loop.                                                                                 │ Jetson HB at 20 Hz).                              │                                                                         │ unplug.                                                              │
  ├───────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────┤
- │ 0c    │ Wk 4–6  │ Mount EPAS18 ECU; verify wiring vs DCE diagram; calibrate steering angle sensor + torque      │ M2 EPAS18 CAN bridge (TX 0x296, RX 0x290+0x292).  │ P0b joystick teleop via DBW bridge.                                     │ Cart wheels-off-ground: joystick steers wheel within ±0.5° of        │
+ │ 0c    │ Wk 4–6  │ Mount EPAS18 ECU; verify wiring vs DCE diagram; calibrate steering angle sensor + torque      │ M2 EPAS18 CAN bridge (TX 0x298, RX 0x290+0x292).  │ P0b joystick teleop via DBW bridge.                                     │ Cart wheels-off-ground: joystick steers wheel within ±0.5° of        │
  │       │         │ zero.                                                                                         │ M3 throttle DAC bench-tested.                     │                                                                         │ command; throttle ramp seen at the controller.                       │
  ├───────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────┤
  │ 0d    │ Wk 6–8  │ Wire J1939 sniffer tap (read-only ISO1042) to GEM diag port.                                  │ M4 J1939 sniff + VEHICLE_STATE @ 50 Hz.           │ P0c sensors all online + TF tree calibrated (LiDAR↔cams).               │ Foxglove shows live PGN-decoded speed/gear/voltage; perception @ ≥10 │

@@ -38,7 +38,7 @@ Software/
 
 500 kbps, 11-bit IDs, little-endian. Critical IDs: 0x100 Jetson HB · 0x110 STEER_CMD · 0x111 STEER_STATUS · 0x112 STEER_TORQUE_RAW · 0x120 THROTTLE_CMD · 0x121 THROTTLE_STATUS · 0x130 BRAKE_CMD · 0x131 BRAKE_STATUS · 0x140 ESTOP_STATE · 0x150 MCU_HB_MOTION · 0x151 MCU_HB_PEDALS · 0x160 VEHICLE_STATE (J1939 decoded).
 
-EPAS bus IDs (DCE protocol): 0x290 (TX from EPAS, 100 ms — torque/duty/current/V/temp/raw torque), 0x292 (TX from EPAS, 100 ms — angle/map/error/status/limits), 0x296 (RX into EPAS, 5 ms / 200 Hz — map + torque demand).
+EPAS bus IDs (DCE protocol): 0x290 (TX from EPAS, 100 ms — torque/duty/current/V/temp/raw torque), 0x292 (TX from EPAS, 100 ms — angle/map/error/status/limits), 0x298 (RX into EPAS, 5 ms / 200 Hz — map + torque demand).
 
 ## Top action items
 
