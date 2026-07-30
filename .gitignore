@@ -49,3 +49,4 @@ Sim/preview/gem_e4_preview.urdf
 # Upstream ROS workspaces — cloned per-machine, not vendored
 Sim/Cartagena_GEM_E4_workspace/ros2_ws/src/gem_ws/
 Sim/Cartagena_GEM_E4_workspace/ros2_ws/src/gem-simulator/
+Software/teleop_serial/gem_gamepad_map.json
