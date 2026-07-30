@@ -36,9 +36,23 @@ python3 gem_gamepad.py --calibrate
 
 It first prints the controller's **full axis/button inventory** (every control,
 so adding features later needs no recalibration), then walks you through each
-control we use — "push the left stick right", "squeeze LT", etc. — detecting and
-saving each to `gem_gamepad_map.json`, which the driver auto-loads. It also
-detects whether **LT is analog or a button** and sets braking to match.
+control — you **choose** which physical button does what. Each control is only
+accepted when **held for ~½ second** (rejects stray twitches / cross-talk), and
+buttons are **confirmed by a second press**. The map is written atomically to
+`gem_gamepad_map.json` (persists across reboots; the driver auto-loads it), and
+the wizard **auto-opens the live check** at the end so you verify before driving.
+It also detects whether **LT is analog or a button** and sets braking to match.
+
+### Verify without driving
+
+```bash
+python3 gem_gamepad.py --monitor   # live 'digital twin': every axis bar + button
+                                   # cell, highlighting as you touch them
+python3 gem_gamepad.py --test      # dry run: shows the DECODED action per control
+                                   # using your saved map. Nothing actuates.
+```
+Use `--monitor` to read a controller from scratch (which number is which button);
+use `--test` to confirm the saved mapping decodes correctly.
 
 ## Drive
 
