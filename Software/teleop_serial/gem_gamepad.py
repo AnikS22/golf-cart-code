@@ -206,104 +206,167 @@ def apply_map(m):
             g[k] = m[k]
 
 
-def _settle(pad, secs):
+def _axis_rest(pad, secs=0.6):
+    """Snapshot each axis's resting value (call while the pad is untouched)."""
     end = now() + secs
+    vals = {}
     while now() < end:
         pad.poll()
-        time.sleep(0.02)
-
-
-def _capture_control(pad, prompt, want):
-    """Guide the user to actuate ONE control; detect and return its mapping.
-    want: 'button' | 'axis' (bipolar/analog) — 'axis' also accepts a button fallback.
-    Returns a dict describing what was detected."""
-    print(f"\n>>> {prompt}")
-    print("    (waiting... do it now)")
-    _settle(pad, 0.4)                         # let go of the previous control
-    rest = dict(pad.axes)                      # baseline axis values
-    prev_btn = dict(pad.buttons)
-    peak = {}                                  # axis -> (max_abs_dev, value_at_peak)
-    t0 = now()
-    while now() - t0 < 12.0:
-        pad.poll()
-        # button edge?
-        for n, v in pad.buttons.items():
-            if v and not prev_btn.get(n):
-                # confirm + wait for release
-                print(f"    detected BUTTON {n}")
-                twait = now()
-                while now() - twait < 3.0 and pad.button(n):
-                    pad.poll(); time.sleep(0.02)
-                return {"type": "button", "index": n}
-        prev_btn = dict(pad.buttons)
-        # axis deviation
         for n, v in pad.axes.items():
-            dev = abs(v - rest.get(n, 0))
-            if dev > peak.get(n, (0, 0))[0]:
-                peak[n] = (dev, v)
-        if peak:
-            bn, (bdev, bval) = max(peak.items(), key=lambda kv: kv[1][0])
-            # full press seen AND control returned toward rest -> lock it in
-            if bdev > 15000 and abs(pad.axis(bn) - rest.get(bn, 0)) < 6000:
-                sign = 1 if bval > rest.get(bn, 0) else -1
-                print(f"    detected AXIS {bn} (rest {rest.get(bn,0):+d}, full {bval:+d})")
-                return {"type": "axis", "index": bn, "rest": rest.get(bn, 0),
-                        "full": bval, "sign": sign}
+            vals[n] = v
         time.sleep(0.02)
-    print("    (timed out — skipped; you can re-run --calibrate)")
+    return vals
+
+
+def _busy(pad, rest):
+    return (any(pad.buttons.values()) or
+            any(abs(pad.axis(n) - rest.get(n, 0)) > 8000 for n in pad.axes))
+
+
+def _wait_idle(pad, rest, need=0.4, timeout=15):
+    """Block until nothing is pressed / no axis is deflected, sustained `need` sec."""
+    stable = None
+    t0 = now()
+    while now() - t0 < timeout:
+        pad.poll()
+        if _busy(pad, rest):
+            stable = None
+        else:
+            stable = stable or now()
+            if now() - stable >= need:
+                return
+        time.sleep(0.02)
+
+
+def _hold_button(pad, hold=0.30, timeout=25):
+    """Return a button index held (alone) for `hold` seconds — rejects transients."""
+    cand = since = None
+    t0 = now()
+    while now() - t0 < timeout:
+        pad.poll()
+        pressed = [n for n, v in pad.buttons.items() if v]
+        if len(pressed) == 1:
+            n = pressed[0]
+            if cand == n and now() - since >= hold:
+                return n
+            if cand != n:
+                cand, since = n, now()
+        else:
+            cand = None
+        time.sleep(0.02)
     return None
+
+
+def _hold_axis_or_button(pad, rest, hold=0.35, thresh=14000, timeout=25):
+    """Detect a control held for `hold` sec: an axis pushed past `thresh`, OR a
+    button. Returns ('axis', idx, sign) or ('button', idx, None)."""
+    cand = since = None
+    t0 = now()
+    while now() - t0 < timeout:
+        pad.poll()
+        pressed = [n for n, v in pad.buttons.items() if v]
+        best = None; bestdev = 0; bestval = 0
+        for n, v in pad.axes.items():
+            d = abs(v - rest.get(n, 0))
+            if d > bestdev:
+                bestdev, best, bestval = d, n, v
+        key = None
+        if len(pressed) == 1 and bestdev < thresh:
+            key = ("button", pressed[0], None)
+        elif best is not None and bestdev >= thresh:
+            key = ("axis", best, 1 if bestval > rest.get(best, 0) else -1)
+        if key is not None:
+            if cand == key[:2] and now() - since >= hold:
+                return key
+            if cand != key[:2]:
+                cand, since = key[:2], now()
+        else:
+            cand = None
+        time.sleep(0.02)
+    return None
+
+
+def _capture_button(pad, rest, label):
+    """Ask for a button, detect a sustained hold, confirm with a second press."""
+    while True:
+        print(f"\n  >>> {label}")
+        print("      Press & HOLD the button you want (any button). Waiting...")
+        _wait_idle(pad, rest)
+        n = _hold_button(pad)
+        if n is None:
+            print("      (didn't catch a steady press — let's try again)")
+            continue
+        print(f"      got button {n}. Release it, then TAP the SAME button to confirm.")
+        while pad.button(n):
+            pad.poll(); time.sleep(0.02)
+        _wait_idle(pad, rest, need=0.2)
+        n2 = _hold_button(pad, hold=0.04)
+        if n2 == n:
+            print(f"      ✓ {label} = button {n}")
+            while pad.button(n):
+                pad.poll(); time.sleep(0.02)
+            return n
+        print(f"      that was button {n2}, not {n} — redoing {label}.")
+        if n2 is not None:
+            while pad.button(n2):
+                pad.poll(); time.sleep(0.02)
 
 
 def calibrate(path):
     print("\n══════════════ GAMEPAD CALIBRATION WIZARD ══════════════")
-    # Full hardware inventory first — records ALL axes/buttons for future use.
     inv = None
     try:
         inv = js_inventory(path)
         print(f"Controller: {inv['name']}  ({inv['num_axes']} axes, {inv['num_buttons']} buttons)")
-        print("  axes:    " + ", ".join(f"{a['index']}:{a['name']}" for a in inv["axes"]))
-        print("  buttons: " + ", ".join(f"{b['index']}:{b['name']}" for b in inv["buttons"]))
     except OSError as e:
         print(f"(inventory ioctl unavailable: {e})")
-    print("\nNow I'll assign the controls we use. Do ONLY the named one, fully,")
-    print("then let go. Ctrl-C to abort.\n")
+    print("\nI'll ask for one control at a time. HOLD it firmly for ~half a second so")
+    print("I read it cleanly. You pick which physical buttons you want. Ctrl-C aborts.")
     pad = Gamepad(path)
     m = {}
     if inv:
         m["inventory"] = inv
+    rest = _axis_rest(pad)
     try:
-        r = _capture_control(pad, "HOLD the button you want as DEADMAN (right bumper, RB), then release", "button")
-        if r and r["type"] == "button":
-            m["BTN_DEADMAN"] = r["index"]
+        # 1) DEADMAN (button, confirmed)
+        m["BTN_DEADMAN"] = _capture_button(pad, rest, "DEADMAN (hold-to-drive; RB is a good pick)")
 
-        r = _capture_control(pad, "Push the LEFT STICK fully to the RIGHT, then let it center", "axis")
-        if r and r["type"] == "axis":
-            m["AXIS_STEER"] = r["index"]
-            m["STEER_INVERT"] = (r["sign"] < 0)     # right should read positive
+        # 2) STEERING (axis)
+        print("\n  >>> STEERING — push the LEFT THUMBSTICK fully RIGHT and HOLD it there")
+        _wait_idle(pad, rest)
+        r = _hold_axis_or_button(pad, rest)
+        if r and r[0] == "axis":
+            m["AXIS_STEER"] = r[1]; m["STEER_INVERT"] = (r[2] < 0)
+            print(f"      ✓ steering = axis {r[1]}")
+            _wait_idle(pad, rest)
 
-        r = _capture_control(pad, "Press the D-PAD RIGHT edge (the + cross on the left), then release", "axis")
-        if r and r["type"] == "axis":
-            m["AXIS_DPAD_X"] = r["index"]
-            m["DPAD_INVERT"] = (r["sign"] < 0)
-        elif r and r["type"] == "button":
-            print("    (D-pad reads as buttons on this pad — micro-steer via D-pad disabled)")
+        # 3) D-PAD (axis)
+        print("\n  >>> MICRO-STEER — push the D-PAD (the + cross) RIGHT and HOLD it")
+        _wait_idle(pad, rest)
+        r = _hold_axis_or_button(pad, rest)
+        if r and r[0] == "axis":
+            m["AXIS_DPAD_X"] = r[1]; m["DPAD_INVERT"] = (r[2] < 0)
+            print(f"      ✓ D-pad = axis {r[1]}")
+        elif r and r[0] == "button":
+            print("      (D-pad reads as buttons here — D-pad micro-steer left as default)")
+        _wait_idle(pad, rest)
 
-        r = _capture_control(pad, "Squeeze the LEFT TRIGGER (LT) all the way, then release — this is BRAKE", "axis")
-        if r and r["type"] == "axis":
-            m["BRAKE_KIND"] = "axis"; m["BRAKE_INDEX"] = r["index"]
-            m["BRAKE_REST"] = r["rest"]; m["BRAKE_FULL"] = r["full"]
-            print("    LT is ANALOG -> proportional (gradual) braking. ")
-        elif r and r["type"] == "button":
-            m["BRAKE_KIND"] = "button"; m["BRAKE_INDEX"] = r["index"]
-            print("    LT is ON/OFF -> software-ramped braking (hold longer = more brake).")
+        # 4) BRAKE (axis analog OR button)
+        print("\n  >>> BRAKE — squeeze the LEFT TRIGGER (LT) fully and HOLD it")
+        _wait_idle(pad, rest)
+        r = _hold_axis_or_button(pad, rest)
+        if r and r[0] == "axis":
+            m["BRAKE_KIND"] = "axis"; m["BRAKE_INDEX"] = r[1]
+            full = pad.axis(r[1]); m["BRAKE_REST"] = rest.get(r[1], 0); m["BRAKE_FULL"] = full
+            print(f"      ✓ brake = ANALOG axis {r[1]} (proportional / gradual)")
+        elif r and r[0] == "button":
+            m["BRAKE_KIND"] = "button"; m["BRAKE_INDEX"] = r[1]
+            print(f"      ✓ brake = button {r[1]} (on/off -> software ramp: hold longer = more brake)")
+        _wait_idle(pad, rest)
 
-        r = _capture_control(pad, "Press the BACK button (E-STOP)", "button")
-        if r and r["type"] == "button":
-            m["BTN_ESTOP"] = r["index"]
-
-        r = _capture_control(pad, "Press the START button (clear e-stop)", "button")
-        if r and r["type"] == "button":
-            m["BTN_CLEAR"] = r["index"]
+        # 5) E-STOP + 6) CLEAR (buttons, confirmed)
+        m["BTN_ESTOP"] = _capture_button(pad, rest, "E-STOP (panic stop; BACK is a good pick)")
+        m["BTN_CLEAR"] = _capture_button(pad, rest, "CLEAR (un-latch e-stop; START is a good pick)")
     except KeyboardInterrupt:
         print("\naborted — nothing saved.")
         pad.close()
@@ -311,16 +374,126 @@ def calibrate(path):
     finally:
         pad.close()
 
-    with open(MAP_PATH, "w") as f:
+    tmp = MAP_PATH + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(m, f, indent=2)
+    os.replace(tmp, MAP_PATH)                     # atomic write -> never a half file
     print("\n──────────── SAVED MAPPING ────────────")
     for k, v in m.items():
         if k == "inventory":
             print(f"  {k:14s} = {v['num_axes']} axes, {v['num_buttons']} buttons (full list stored)")
         else:
             print(f"  {k:14s} = {v}")
-    print(f"\nWritten to {MAP_PATH}")
-    print("The driver will load this automatically. Run:  python3 gem_gamepad.py\n")
+    print(f"\n✓ Saved to {MAP_PATH} — this persists; the driver auto-loads it.")
+
+    # Auto-verify: apply the just-saved map and open the live dry-run.
+    apply_map(m)
+    print("\nLaunching a LIVE CHECK — press each control and confirm the DECODED")
+    print("action matches. Nothing moves. Ctrl-C when you're happy.\n")
+    time.sleep(1.5)
+    test_mode(path)
+
+
+def monitor(path):
+    """Live 'digital twin' of the controller — every axis + button drawn on screen,
+    updating in real time. Touch a control, watch which one lights up. No mapping
+    needed; nothing actuates. This is the easiest way to read your controller."""
+    inv = None
+    try:
+        inv = js_inventory(path)
+    except OSError:
+        pass
+    ax_names = {a["index"]: a["name"] for a in inv["axes"]} if inv else {}
+    bt_names = {b["index"]: b["name"] for b in inv["buttons"]} if inv else {}
+    pad = Gamepad(path)
+    name = inv["name"] if inv else path
+    last = "-"
+    prev_ax, prev_bt = {}, {}
+    sys.stdout.write("\033[2J")   # clear once
+    try:
+        while True:
+            pad.poll()
+            # track last-changed control (helps you identify it)
+            for n, v in pad.axes.items():
+                if abs(v - prev_ax.get(n, 0)) > 6000:
+                    last = f"AXIS {n} ({ax_names.get(n,'?')})"
+                prev_ax[n] = v
+            for n, v in pad.buttons.items():
+                if v and not prev_bt.get(n):
+                    last = f"BUTTON {n} ({bt_names.get(n,'?')})"
+                prev_bt[n] = v
+
+            lines = [f" CONTROLLER: {name}",
+                     f" last touched: {last}", ""]
+            for n in sorted(pad.axes):
+                v = pad.axis(n)
+                pos = int((v / AXIS_MAX + 1) * 10)          # 0..20
+                pos = max(0, min(20, pos))
+                bar = "".join("┃" if i == pos else ("·" if i == 10 else "─") for i in range(21))
+                lines.append(f"  axis {n:2d} [{bar}] {v:+6d}  {ax_names.get(n,'')}")
+            lines.append("")
+            nbtn = inv["num_buttons"] if inv else (max(pad.buttons) + 1 if pad.buttons else 0)
+            cells = []
+            for n in range(nbtn):
+                cells.append(f"\033[7m {n:2d} \033[0m" if pad.button(n) else f" {n:2d} ")
+            lines.append("  buttons (highlighted = pressed):")
+            lines.append("   " + " ".join(cells))
+            lines.append("")
+            lines.append(" Press each control; note its number. Ctrl-C to quit.")
+            padded = [l if "\033" in l else l.ljust(78) for l in lines]
+            sys.stdout.write("\033[H" + "\n".join(padded) + "\n\033[J")
+            sys.stdout.flush()
+            time.sleep(0.05)
+    except KeyboardInterrupt:
+        sys.stdout.write("\033[2J\033[H")
+        print("done.")
+    finally:
+        pad.close()
+
+
+def test_mode(path):
+    """Dry run: show what each control WOULD do, per the saved map. No Teensies,
+    nothing actuates — safe way to confirm the mapping is correct."""
+    print("\n═══════════ DRY-RUN TEST (nothing moves) ═══════════")
+    print(f"  deadman=btn{BTN_DEADMAN}  steer=axis{AXIS_STEER}(inv={STEER_INVERT})  "
+          f"dpad=axis{AXIS_DPAD_X}(inv={DPAD_INVERT})")
+    print(f"  brake={BRAKE_KIND} {BRAKE_INDEX}  e-stop=btn{BTN_ESTOP}  clear=btn{BTN_CLEAR}")
+    print("\n  Push/press ONE control at a time. Check the DECODED action matches")
+    print("  what you touched. RAW shows the live axis/button so mismatches are obvious.")
+    print("  Ctrl-C to quit.\n")
+    pad = Gamepad(path)
+    try:
+        while True:
+            pad.poll()
+            acts = []
+            if pad.button(BTN_DEADMAN): acts.append("DEADMAN")
+            if pad.button(BTN_ESTOP):   acts.append("E-STOP")
+            if pad.button(BTN_CLEAR):   acts.append("CLEAR")
+            s = pad.axis(AXIS_STEER) / AXIS_MAX
+            if STEER_INVERT: s = -s
+            if abs(s) > STEER_DEADZONE:
+                acts.append(f"STEER {'RIGHT' if s > 0 else 'LEFT'} {abs(s)*100:3.0f}%")
+            dx = pad.axis(AXIS_DPAD_X)
+            if DPAD_INVERT: dx = -dx
+            if dx != 0:
+                acts.append(f"D-PAD {'RIGHT' if dx > 0 else 'LEFT'}")
+            if BRAKE_KIND == "axis":
+                span = float(BRAKE_FULL - BRAKE_REST) or 1.0
+                b = max(0.0, min(1.0, (pad.axis(BRAKE_INDEX) - BRAKE_REST) / span))
+                if b > BRAKE_DEADZONE:
+                    acts.append(f"BRAKE {b*100:3.0f}%")
+            elif pad.button(BRAKE_INDEX):
+                acts.append("BRAKE (held)")
+            raw_ax = " ".join(f"a{n}={v:+6d}" for n, v in sorted(pad.axes.items()) if abs(v) > 8000)
+            raw_bt = " ".join(f"b{n}" for n, v in sorted(pad.buttons.items()) if v)
+            decoded = ", ".join(acts) if acts else "-"
+            print(f"  DECODED: {decoded:38s} | RAW: {raw_ax} [{raw_bt}]".ljust(118)[:118],
+                  end="\r", flush=True)
+            time.sleep(0.03)
+    except KeyboardInterrupt:
+        print("\n")
+    finally:
+        pad.close()
 
 
 # ─── Teensy serial wrapper + auto-classification ──────────────────────────────
@@ -431,6 +604,8 @@ def rate_gate(state_key, hz, times):
 def main():
     ap = argparse.ArgumentParser(description="GEM E4 gamepad teleop over Teensy USB serial")
     ap.add_argument("--calibrate", action="store_true", help="run the guided mapping wizard and save it")
+    ap.add_argument("--test", action="store_true", help="dry run: show decoded actions, touch nothing")
+    ap.add_argument("--monitor", action="store_true", help="live on-screen view of every stick/button")
     ap.add_argument("--js", help="gamepad device (default: first /dev/input/js*)")
     ap.add_argument("--steer", help="steering Teensy serial port (skip auto-detect)")
     ap.add_argument("--brake", help="brake Teensy serial port (skip auto-detect)")
@@ -440,11 +615,16 @@ def main():
     if saved:
         apply_map(saved)
 
-    if args.calibrate:
+    if args.calibrate or args.test or args.monitor:
         js = args.js or (sorted(glob.glob("/dev/input/js*")) or [None])[0]
         if not js:
             sys.exit("No /dev/input/js* found. Plug in the gamepad.")
-        calibrate(js)
+        if args.monitor:
+            monitor(js)
+        elif args.test:
+            test_mode(js)
+        else:
+            calibrate(js)
         return
 
     if serial is None:
